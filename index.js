@@ -283,9 +283,10 @@ listenForMoves((move) => {
   console.log('Received move:', move);
 });
 
+let currentKeys = new Set();
+
 window.addEventListener('keydown', (event) => {
-  // Emit move to GUN
-  emitGameMove(event.key);
+  currentKeys.add(event.key);
   if (!player.dead) {
     switch (event.key) {
       case 'd':
@@ -327,6 +328,7 @@ window.addEventListener('keydown', (event) => {
 })
 
 window.addEventListener('keyup', (event) => {
+  currentKeys.delete(event.key);
   switch (event.key) {
     case 'd':
       keys.d.pressed = false
@@ -346,3 +348,11 @@ window.addEventListener('keyup', (event) => {
       break
   }
 })
+
+// Emit moves at fixed intervals
+setInterval(() => {
+  if (currentKeys.size > 0) {
+    const moveString = Array.from(currentKeys).join('+');
+    emitGameMove(moveString);
+  }
+}, FRAME_INTERVAL);

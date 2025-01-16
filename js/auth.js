@@ -31,17 +31,27 @@ async function connectWallet() {
     }
 }
 
+const FRAME_RATE = 30;
+const FRAME_INTERVAL = 1000 / FRAME_RATE;
+let lastMoveTime = 0;
+
 function emitGameMove(move, previousMoveSignature = null) {
     if (!currentUser) {
         console.error('User not authenticated');
         return;
     }
 
+    const currentTime = Date.now();
+    if (currentTime - lastMoveTime < FRAME_INTERVAL) {
+        return; // Skip if not enough time has passed
+    }
+
     const moveData = {
         move,
-        timestamp: Date.now(),
+        timestamp: currentTime,
         player: userWallet,
-        previousMoveSignature
+        previousMoveSignature,
+        frameNumber: Math.floor(currentTime / FRAME_INTERVAL)
     };
 
     // Sign the move data
@@ -49,6 +59,7 @@ function emitGameMove(move, previousMoveSignature = null) {
     
     // Emit to GUN
     gun.get('gameMoves').set(moveData);
+    lastMoveTime = currentTime;
 }
 
 function listenForMoves(callback) {
