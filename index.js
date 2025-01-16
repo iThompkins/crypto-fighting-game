@@ -269,7 +269,23 @@ function animate() {
 
 animate()
 
+// Initialize auth
+document.getElementById('connect-wallet').addEventListener('click', async () => {
+  if (await connectWallet()) {
+    document.getElementById('auth-container').style.display = 'none';
+    startGame();
+  }
+});
+
+// Listen for opponent moves
+listenForMoves((move) => {
+  // TODO: Implement move validation and game state update
+  console.log('Received move:', move);
+});
+
 window.addEventListener('keydown', (event) => {
+  // Emit move to GUN
+  emitGameMove(event.key);
   if (!player.dead) {
     switch (event.key) {
       case 'd':

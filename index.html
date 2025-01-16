@@ -13,6 +13,11 @@
   </style>
 </head>
 <body>
+  <div id="auth-container" style="text-align: center; margin: 20px;">
+    <button id="connect-wallet" style="padding: 10px; font-family: 'Press Start 2P', cursive;">
+      Connect Wallet
+    </button>
+  </div>
   <!-- red container div -->
   <div style="position: relative; display: inline-block">
     <!-- smaller red container div -->
@@ -118,6 +123,8 @@
     crossorigin="anonymous"
     referrerpolicy="no-referrer"
   ></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/classes.js"></script>
   <script src="index.js"></script>
