@@ -27,6 +27,4 @@ function startCountdown() {
 function startGame() {
   gameState.gameStarted = true;
   decreaseTimer();
-  player.show();
-  enemy.show();
 }
