@@ -13,7 +13,7 @@
   </style>
 </head>
 <body>
-  <div id="auth-container" style="text-align: center; margin: 20px;">
+  <div id="auth-container" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100;">
     <button id="connect-wallet" style="padding: 10px; font-family: 'Press Start 2P', cursive;">
       Connect Wallet
     </button>
@@ -114,8 +114,27 @@
     >
       Tie
     </div>
+    <div id="countdown-overlay" style="
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 50;
+    ">
+      <div id="countdown-text" style="
+        color: white;
+        font-size: 72px;
+        font-family: 'Press Start 2P', cursive;
+      ">3</div>
+    </div>
     <canvas></canvas>
   </div>
+  <script src="js/gameState.js"></script>
 
   <script
     src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"

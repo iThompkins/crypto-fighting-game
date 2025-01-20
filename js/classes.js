@@ -20,6 +20,7 @@ class Sprite {
   }
 
   draw() {
+    if (!this.visible) return;
     c.drawImage(
       this.image,
       this.framesCurrent * (this.image.width / this.framesMax),
@@ -47,12 +48,14 @@ class Sprite {
 
   update() {
     this.draw()
+    if (!this.visible) return;
     this.animateFrames()
   }
 }
 
 class Fighter extends Sprite {
   constructor({
+    visible = false,
     position,
     velocity,
     color = 'red',
@@ -92,7 +95,8 @@ class Fighter extends Sprite {
     this.framesHold = 5
     this.sprites = sprites
     this.dead = false
-
+    this.visible = visible
+    
     for (const sprite in this.sprites) {
       sprites[sprite].image = new Image()
       sprites[sprite].image.src = sprites[sprite].imageSrc
@@ -214,5 +218,13 @@ class Fighter extends Sprite {
         }
         break
     }
+  }
+
+  show() {
+    this.visible = true;
+  }
+
+  hide() {
+    this.visible = false;
   }
 }

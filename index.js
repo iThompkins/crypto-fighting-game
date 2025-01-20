@@ -164,8 +164,6 @@ const keys = {
   }
 }
 
-decreaseTimer()
-
 function animate() {
   window.requestAnimationFrame(animate)
   c.fillStyle = 'black'
@@ -273,7 +271,15 @@ animate()
 document.getElementById('connect-wallet').addEventListener('click', async () => {
   if (await connectWallet()) {
     document.getElementById('auth-container').style.display = 'none';
-    startGame();
+    
+    if (!gameState.player1Connected) {
+      gameState.player1Connected = true;
+      player.show();
+    } else if (!gameState.player2Connected) {
+      gameState.player2Connected = true;
+      enemy.show();
+      startCountdown();
+    }
   }
 });
 
