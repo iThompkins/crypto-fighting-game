@@ -1,4 +1,7 @@
-const gun = Gun(['http://localhost:8765/gun']);
+// Initialize Gun with default relay
+const gun = Gun({
+  peers: ['http://localhost:8765/gun']
+});
 let currentUser = null;
 let payerWallet = null;  // MetaMask wallet
 let playerWallet = null; // Generated game wallet
@@ -81,8 +84,12 @@ async function emitGameMove(move, opponentMove = null) {
 }
 
 function listenForMoves(callback) {
+    if (!gun) {
+        console.error('Gun not initialized');
+        return;
+    }
     gun.get('gameMoves').map().on((move, id) => {
-        if (move.player !== userWallet) {
+        if (move.player !== playerWallet?.address) {
             callback(move);
         }
     });
