@@ -11,6 +11,10 @@ class Sprite {
     this.height = 150
     this.image = new Image()
     this.image.src = imageSrc
+    this.loaded = false
+    this.image.onload = () => {
+      this.loaded = true
+    }
     this.scale = scale
     this.framesMax = framesMax
     this.framesCurrent = 0
@@ -20,7 +24,7 @@ class Sprite {
   }
 
   draw() {
-    if (!this.visible) return;
+    if (!this.visible || !this.loaded) return;
     c.drawImage(
       this.image,
       this.framesCurrent * (this.image.width / this.framesMax),
