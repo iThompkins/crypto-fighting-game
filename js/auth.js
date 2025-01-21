@@ -37,29 +37,33 @@ async function connectWallet() {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
         
-        // Create authentication message and get signature
-        const message = `Login to Fighting Game with address: ${payerWallet}`;
-        const signature = await signer.signMessage(message);
-        
-        // Create a consistent password from the signature
-        const pass = await SEA.work(signature, null, null, {
-            name: 'SHA-256'
-        });
+        // Just sign the wallet address as authentication
+        const signature = await signer.signMessage(payerWallet);
         
         currentUser = gun.user();
         
         try {
-            // Create user if doesn't exist
-            await new Promise((resolve) => {
-                currentUser.create(payerWallet, pass, (ack) => {
+            // Try to create user first
+            const createResult = await new Promise((resolve) => {
+                currentUser.create(payerWallet, signature, (ack) => {
                     console.log('Create response:', ack);
                     resolve(ack);
                 });
             });
 
-            // Authenticate
-            const authResult = await new Promise((resolve, reject) => {
-                currentUser.auth(payerWallet, pass, (ack) => {
+            // If user creation failed because user exists, that's ok
+            if (createResult.err && !createResult.err.includes('already created')) {
+                throw new Error(createResult.err);
+            }
+        } catch (err) {
+            console.error('Create error:', err);
+            throw err;
+        }
+
+        // Always authenticate after create attempt
+        try {
+            await new Promise((resolve, reject) => {
+                currentUser.auth(payerWallet, signature, (ack) => {
                     console.log('Auth response:', ack);
                     if (ack.err) {
                         reject(new Error(ack.err));
@@ -68,9 +72,6 @@ async function connectWallet() {
                     }
                 });
             });
-
-            // Wait a moment for auth to complete
-            await new Promise(resolve => setTimeout(resolve, 500));
         } catch (err) {
             console.error('Auth error:', err);
             throw err;
