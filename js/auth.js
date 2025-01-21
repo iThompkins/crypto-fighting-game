@@ -16,6 +16,15 @@ async function connectWallet() {
         return;
     }
 
+    // Show loader and disable button
+    const button = document.getElementById('connect-wallet');
+    const buttonText = document.getElementById('wallet-button-text');
+    const loader = document.getElementById('wallet-loader');
+    
+    button.disabled = true;
+    buttonText.style.visibility = 'hidden';
+    loader.style.display = 'block';
+
     try {
         // Request account access for MetaMask (payer wallet)
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -77,6 +86,15 @@ async function connectWallet() {
     } catch (error) {
         console.error('Auth error:', error);
         return false;
+    } finally {
+        // Hide loader and enable button
+        const button = document.getElementById('connect-wallet');
+        const buttonText = document.getElementById('wallet-button-text');
+        const loader = document.getElementById('wallet-loader');
+        
+        button.disabled = false;
+        buttonText.style.visibility = 'visible';
+        loader.style.display = 'none';
     }
 }
 
