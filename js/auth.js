@@ -28,47 +28,34 @@ async function connectWallet() {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
         
-        // Create authentication message
+        // Create a simple authentication message
         const message = `Login to Fighting Game with address: ${payerWallet}`;
         const signature = await signer.signMessage(message);
         
-        // Create a deterministic password from the signature
-        const pass = await SEA.work(signature, null, null, {name: 'PBKDF2'});
+        // Create a simpler password using the first 32 chars of signature
+        const pass = signature.slice(0, 32);
         
-        // Try to authenticate first
+        // Try to authenticate
         currentUser = gun.user();
         
         try {
-            const result = await new Promise((resolve) => {
-                currentUser.auth(payerWallet, pass, (ack) => {
-                    resolve(ack);
+            // Always try to create first (idempotent operation)
+            await new Promise((resolve) => {
+                currentUser.create(payerWallet, pass, (ack) => {
+                    resolve();
                 });
             });
 
-            // If authentication failed, try to create user
-            if (result.err) {
-                const createResult = await new Promise((resolve) => {
-                    currentUser.create(payerWallet, pass, (ack) => {
+            // Then authenticate
+            const authResult = await new Promise((resolve, reject) => {
+                currentUser.auth(payerWallet, pass, (ack) => {
+                    if (ack.err) {
+                        reject(new Error(ack.err));
+                    } else {
                         resolve(ack);
-                    });
-                });
-
-                // If creation successful or user exists, try auth again
-                if (!createResult.err || createResult.err.includes('already created')) {
-                    const finalAuth = await new Promise((resolve, reject) => {
-                        currentUser.auth(payerWallet, pass, (ack) => {
-                            if (ack.err) reject(new Error(ack.err));
-                            resolve(ack);
-                        });
-                    });
-                    
-                    if (finalAuth.err) {
-                        throw new Error(finalAuth.err);
                     }
-                } else {
-                    throw new Error(createResult.err);
-                }
-            }
+                });
+            });
         } catch (err) {
             console.error('Auth error:', err);
             throw err;
