@@ -37,27 +37,30 @@ async function connectWallet() {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
         
-        // Create a simple authentication message
+        // Create authentication message and get signature
         const message = `Login to Fighting Game with address: ${payerWallet}`;
         const signature = await signer.signMessage(message);
         
-        // Create a simpler password using the first 32 chars of signature
-        const pass = signature.slice(0, 32);
+        // Create a consistent password from the signature
+        const pass = await SEA.work(signature, null, null, {
+            name: 'SHA-256'
+        });
         
-        // Try to authenticate
         currentUser = gun.user();
         
         try {
-            // Always try to create first (idempotent operation)
+            // Create user if doesn't exist
             await new Promise((resolve) => {
                 currentUser.create(payerWallet, pass, (ack) => {
-                    resolve();
+                    console.log('Create response:', ack);
+                    resolve(ack);
                 });
             });
 
-            // Then authenticate
+            // Authenticate
             const authResult = await new Promise((resolve, reject) => {
                 currentUser.auth(payerWallet, pass, (ack) => {
+                    console.log('Auth response:', ack);
                     if (ack.err) {
                         reject(new Error(ack.err));
                     } else {
@@ -65,6 +68,9 @@ async function connectWallet() {
                     }
                 });
             });
+
+            // Wait a moment for auth to complete
+            await new Promise(resolve => setTimeout(resolve, 500));
         } catch (err) {
             console.error('Auth error:', err);
             throw err;
