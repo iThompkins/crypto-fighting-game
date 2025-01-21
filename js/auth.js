@@ -27,14 +27,41 @@ async function connectWallet() {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
         
-        // Create a simple encrypted wallet using the payer address as key
+        // Create authentication message
         const message = `Login to Fighting Game with address: ${payerWallet}`;
         const signature = await signer.signMessage(message);
         
-        // Create GUN user with payer wallet address as username
+        // Create a deterministic password from the signature
+        const pass = await SEA.work(signature, null, null, {name: 'PBKDF2'});
+        
+        // Try to create user first
         currentUser = gun.user();
-        await currentUser.create(payerWallet, signature);
-        await currentUser.auth(payerWallet, signature);
+        try {
+            await new Promise((resolve, reject) => {
+                currentUser.create(payerWallet, pass, ack => {
+                    if ('err' in ack && !ack.err.includes('User already created')) {
+                        reject(ack.err);
+                    }
+                    resolve();
+                });
+            });
+        } catch (err) {
+            console.error('User creation error:', err);
+            throw err;
+        }
+
+        // Now authenticate
+        try {
+            await new Promise((resolve, reject) => {
+                currentUser.auth(payerWallet, pass, ack => {
+                    if (ack.err) reject(ack.err);
+                    resolve();
+                });
+            });
+        } catch (err) {
+            console.error('Auth error:', err);
+            throw err;
+        }
         
         // Store player wallet info securely
         const walletData = {
