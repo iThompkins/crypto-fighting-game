@@ -37,41 +37,48 @@ async function connectWallet() {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
         
-        // Just sign the wallet address as authentication
-        const signature = await signer.signMessage(payerWallet);
-        
+        // Create a stable authentication key from the wallet address
+        const authKey = await SEA.work(payerWallet, null, null, {
+            name: 'PBKDF2',
+            length: 32
+        });
+
         currentUser = gun.user();
         
         try {
-            // Try to create user first
-            const createResult = await new Promise((resolve) => {
-                currentUser.create(payerWallet, signature, (ack) => {
-                    console.log('Create response:', ack);
+            // Try to authenticate first
+            const authResult = await new Promise((resolve) => {
+                currentUser.auth(payerWallet, authKey, (ack) => {
+                    console.log('Auth response:', ack);
                     resolve(ack);
                 });
             });
 
-            // If user creation failed because user exists, that's ok
-            if (createResult.err && !createResult.err.includes('already created')) {
-                throw new Error(createResult.err);
-            }
-        } catch (err) {
-            console.error('Create error:', err);
-            throw err;
-        }
-
-        // Always authenticate after create attempt
-        try {
-            await new Promise((resolve, reject) => {
-                currentUser.auth(payerWallet, signature, (ack) => {
-                    console.log('Auth response:', ack);
-                    if (ack.err) {
-                        reject(new Error(ack.err));
-                    } else {
+            // If auth fails, try to create user
+            if (authResult.err) {
+                const createResult = await new Promise((resolve) => {
+                    currentUser.create(payerWallet, authKey, (ack) => {
+                        console.log('Create response:', ack);
                         resolve(ack);
-                    }
+                    });
                 });
-            });
+
+                // If creation succeeds or user exists, try auth again
+                if (!createResult.err || createResult.err.includes('already created')) {
+                    await new Promise((resolve, reject) => {
+                        currentUser.auth(payerWallet, authKey, (ack) => {
+                            if (ack.err) {
+                                console.error('Final auth failed:', ack.err);
+                                reject(new Error(ack.err));
+                            } else {
+                                resolve(ack);
+                            }
+                        });
+                    });
+                } else {
+                    throw new Error(createResult.err);
+                }
+            }
         } catch (err) {
             console.error('Auth error:', err);
             throw err;
