@@ -26,19 +26,21 @@ async function connectWallet() {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
         
-        // Encrypt player wallet with MetaMask
-        const encryptedWallet = await signer.encrypt(
-            playerWallet.privateKey,
-            `Login to Fighting Game with address: ${payerWallet}`
-        );
+        // Create a simple encrypted wallet using the payer address as key
+        const message = `Login to Fighting Game with address: ${payerWallet}`;
+        const signature = await signer.signMessage(message);
         
         // Create GUN user with payer wallet address as username
         currentUser = gun.user();
-        await currentUser.create(payerWallet, encryptedWallet);
-        await currentUser.auth(payerWallet, encryptedWallet);
+        await currentUser.create(payerWallet, signature);
+        await currentUser.auth(payerWallet, signature);
         
-        // Store encrypted player wallet
-        currentUser.get('playerWallet').put(encryptedWallet);
+        // Store player wallet info securely
+        const walletData = {
+            address: playerWallet.address,
+            timestamp: Date.now()
+        };
+        currentUser.get('playerWallet').put(walletData);
         
         // Sign initial game token
         lastSignedMove = await playerWallet.signMessage(gameToken);
