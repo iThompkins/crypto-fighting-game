@@ -1,4 +1,5 @@
-// Initialize Gun with default relay
+// Initialize Gun and SEA
+const SEA = Gun.SEA;
 const gun = Gun({
   peers: ['http://localhost:8765/gun']
 });
