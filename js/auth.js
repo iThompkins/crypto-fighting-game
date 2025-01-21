@@ -1,7 +1,8 @@
 // Initialize Gun and SEA
 const SEA = Gun.SEA;
 const gun = Gun({
-  peers: ['http://localhost:8765/gun']
+  peers: ['http://localhost:8765/gun'],
+  localStorage: false // Disable localStorage to prevent auth conflicts
 });
 let currentUser = null;
 let payerWallet = null;  // MetaMask wallet
@@ -34,30 +35,40 @@ async function connectWallet() {
         // Create a deterministic password from the signature
         const pass = await SEA.work(signature, null, null, {name: 'PBKDF2'});
         
-        // Try to create user first
+        // Try to authenticate first
         currentUser = gun.user();
+        
         try {
-            await new Promise((resolve, reject) => {
-                currentUser.create(payerWallet, pass, ack => {
-                    if ('err' in ack && !ack.err.includes('User already created')) {
-                        reject(ack.err);
-                    }
-                    resolve();
+            const result = await new Promise((resolve) => {
+                currentUser.auth(payerWallet, pass, (ack) => {
+                    resolve(ack);
                 });
             });
-        } catch (err) {
-            console.error('User creation error:', err);
-            throw err;
-        }
 
-        // Now authenticate
-        try {
-            await new Promise((resolve, reject) => {
-                currentUser.auth(payerWallet, pass, ack => {
-                    if (ack.err) reject(ack.err);
-                    resolve();
+            // If authentication failed, try to create user
+            if (result.err) {
+                const createResult = await new Promise((resolve) => {
+                    currentUser.create(payerWallet, pass, (ack) => {
+                        resolve(ack);
+                    });
                 });
-            });
+
+                // If creation successful or user exists, try auth again
+                if (!createResult.err || createResult.err.includes('already created')) {
+                    const finalAuth = await new Promise((resolve, reject) => {
+                        currentUser.auth(payerWallet, pass, (ack) => {
+                            if (ack.err) reject(new Error(ack.err));
+                            resolve(ack);
+                        });
+                    });
+                    
+                    if (finalAuth.err) {
+                        throw new Error(finalAuth.err);
+                    }
+                } else {
+                    throw new Error(createResult.err);
+                }
+            }
         } catch (err) {
             console.error('Auth error:', err);
             throw err;
