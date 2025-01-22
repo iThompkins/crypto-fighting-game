@@ -37,57 +37,58 @@ async function connectWallet() {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
         
-        // Have MetaMask wallet sign the player wallet's address
+        // Create authentication message and get signature
         const authMessage = `Authenticate game wallet: ${playerWallet.address}`;
         const authKey = await signer.signMessage(authMessage);
 
         currentUser = gun.user();
         
-        try {
-            // Try to authenticate first
-            const authResult = await new Promise((resolve) => {
-                currentUser.auth(payerWallet, authKey, (ack) => {
-                    console.log('Auth response:', ack);
-                    resolve(ack);
-                });
-            });
-
-            // If auth fails, try to create user
-            if (authResult.err) {
-                const createResult = await new Promise((resolve) => {
-                    currentUser.create(payerWallet, authKey, (ack) => {
-                        console.log('Create response:', ack);
-                        resolve(ack);
-                    });
-                });
-
-                // If creation succeeds or user exists, try auth again
-                if (!createResult.err || createResult.err.includes('already created')) {
-                    await new Promise((resolve, reject) => {
-                        currentUser.auth(payerWallet, authKey, (ack) => {
-                            if (ack.err) {
-                                console.error('Final auth failed:', ack.err);
-                                reject(new Error(ack.err));
-                            } else {
-                                resolve(ack);
-                            }
-                        });
+        // Try to authenticate first
+        await new Promise((resolve, reject) => {
+            currentUser.auth(payerWallet, authKey, async (ack) => {
+                if (ack.err) {
+                    console.log('Auth failed:', ack.err);
+                    // Try to create new user
+                    currentUser.create(payerWallet, authKey, async (ack) => {
+                        if (ack.err && !ack.err.includes('already created')) {
+                            reject(new Error(ack.err));
+                            return;
+                        }
+                        try {
+                            // Encrypt player wallet with auth key
+                            const encryptedWallet = await playerWallet.encrypt(authKey);
+                            // Store encrypted wallet
+                            currentUser.get('wallet').put(encryptedWallet);
+                            // Try auth again after creation
+                            currentUser.auth(payerWallet, authKey, (ack) => {
+                                if (ack.err) {
+                                    reject(new Error(ack.err));
+                                } else {
+                                    resolve(ack);
+                                }
+                            });
+                        } catch (error) {
+                            reject(new Error('Failed to encrypt wallet'));
+                        }
                     });
                 } else {
-                    throw new Error(createResult.err);
+                    resolve(ack);
                 }
-            }
+            });
+        });
         } catch (err) {
             console.error('Auth error:', err);
             throw err;
         }
         
-        // Store player wallet info securely
-        const walletData = {
-            address: playerWallet.address,
-            timestamp: Date.now()
-        };
-        currentUser.get('playerWallet').put(walletData);
+        // Store wallet info securely if not already stored
+        currentUser.get('wallet').once((data) => {
+            if (!data) {
+                playerWallet.encrypt(authKey).then(encryptedWallet => {
+                    currentUser.get('wallet').put(encryptedWallet);
+                });
+            }
+        });
         
         // Sign initial game token
         lastSignedMove = await playerWallet.signMessage(gameToken);
