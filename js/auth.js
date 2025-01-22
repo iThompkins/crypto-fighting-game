@@ -37,11 +37,9 @@ async function connectWallet() {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
         
-        // Create a stable authentication key from the wallet address
-        const authKey = await SEA.work(payerWallet, null, null, {
-            name: 'PBKDF2',
-            length: 32
-        });
+        // Have MetaMask wallet sign the player wallet's address
+        const authMessage = `Authenticate game wallet: ${playerWallet.address}`;
+        const authKey = await signer.signMessage(authMessage);
 
         currentUser = gun.user();
         
