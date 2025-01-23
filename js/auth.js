@@ -98,7 +98,7 @@ async function connectWallet() {
         return true;
     } catch (error) {
         console.error('Auth error:', error);
-        return false;
+        throw error;
     } finally {
         // Hide loader and enable button
         const button = document.getElementById('connect-wallet');
