@@ -289,9 +289,11 @@ document.getElementById('connect-wallet').addEventListener('click', async () => 
 });
 
 // Listen for opponent moves
-listenForMoves((move) => {
-  // TODO: Implement move validation and game state update
-  console.log('Received move:', move);
+gun.get('gameMoves').map().on((move, id) => {
+  if (move && playerWallet && move.player !== playerWallet.address) {
+    console.log('Received move:', move);
+    // TODO: Implement move validation and game state update
+  }
 });
 
 let currentKeys = new Set();

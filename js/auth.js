@@ -76,10 +76,6 @@ async function connectWallet() {
                 }
             });
         });
-        } catch (err) {
-            console.error('Auth error:', err);
-            throw err;
-        }
         
         // Store wallet info securely if not already stored
         currentUser.get('wallet').once((data) => {
