@@ -109,6 +109,7 @@ async function connectWallet() {
         buttonText.style.visibility = 'visible';
         loader.style.display = 'none';
     }
+}
 
 const FRAME_RATE = 30;
 const FRAME_INTERVAL = 1000 / FRAME_RATE;
