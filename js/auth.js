@@ -1,9 +1,11 @@
 // Initialize Gun and SEA
 const SEA = Gun.SEA;
 const gun = Gun({
-  peers: ['http://localhost:8765/gun'],
-  localStorage: false // Disable localStorage to prevent auth conflicts
+  peers: ['http://localhost:8765/gun']
 });
+
+// Debug GUN storage location
+console.log('GUN storage:', localStorage.getItem('gun/'));
 let currentUser = null;
 let payerWallet = null;  // MetaMask wallet
 let playerWallet = null; // Generated game wallet
@@ -43,25 +45,36 @@ async function connectWallet() {
 
         currentUser = gun.user();
         
-        // Try to create user first (idempotent)
-        await new Promise((resolve) => {
-            currentUser.create(payerWallet, authKey, (ack) => {
-                console.log('Create response:', ack);
-                resolve();
+        // Try to authenticate first
+        const authResult = await new Promise((resolve) => {
+            currentUser.auth(payerWallet, authKey, (ack) => {
+                console.log('Initial auth response:', ack);
+                resolve(ack);
             });
         });
 
-        // Then authenticate
-        await new Promise((resolve, reject) => {
-            currentUser.auth(payerWallet, authKey, (ack) => {
-                console.log('Auth response:', ack);
-                if (ack.err) {
-                    reject(new Error(ack.err));
-                } else {
-                    resolve();
-                }
+        // If auth fails, try to create and auth again
+        if (authResult.err) {
+            console.log('Auth failed, trying create...');
+            const createResult = await new Promise((resolve) => {
+                currentUser.create(payerWallet, authKey, (ack) => {
+                    console.log('Create response:', ack);
+                    resolve(ack);
+                });
             });
-        });
+
+            // Try auth again after create attempt
+            const finalAuth = await new Promise((resolve, reject) => {
+                currentUser.auth(payerWallet, authKey, (ack) => {
+                    console.log('Final auth response:', ack);
+                    if (ack.err) {
+                        reject(new Error(ack.err));
+                    } else {
+                        resolve(ack);
+                    }
+                });
+            });
+        }
 
         // Store wallet data after successful auth
         const walletData = {
