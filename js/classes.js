@@ -59,7 +59,6 @@ class Sprite {
 
 class Fighter extends Sprite {
   constructor({
-    visible = false,
     position,
     velocity,
     color = 'red',
@@ -99,7 +98,7 @@ class Fighter extends Sprite {
     this.framesHold = 5
     this.sprites = sprites
     this.dead = false
-    this.visible = visible
+    this.visible = false
     
     for (const sprite in this.sprites) {
       sprites[sprite].image = new Image()

@@ -4,8 +4,6 @@ const gun = Gun({
   peers: ['http://localhost:8765/gun']
 });
 
-// Debug GUN storage location
-console.log('GUN storage:', localStorage.getItem('gun/'));
 let currentUser = null;
 let payerWallet = null;  // MetaMask wallet
 let playerWallet = null; // Generated game wallet
