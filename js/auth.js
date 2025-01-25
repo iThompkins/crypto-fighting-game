@@ -46,39 +46,28 @@ async function connectWallet() {
         currentUser = gun.user();
         
         // Try to authenticate first
-        const authResult = await new Promise((resolve) => {
-            currentUser.auth(payerWallet, authKey, (ack) => {
-                console.log('Initial auth response:', ack);
-                resolve(ack);
-            });
+        currentUser.auth(payerWallet, authKey, async (ack) => {
+            console.log('Initial auth response:', ack);
+            
+            if (ack.err) {
+                console.log('Auth failed, attempting user creation...');
+                // Try to create user if auth fails
+                currentUser.create(payerWallet, authKey, (createAck) => {
+                    console.log('Create response:', createAck);
+                    if (createAck.err && !createAck.err.includes('already created')) {
+                        throw new Error(createAck.err);
+                    }
+                    
+                    // Try auth again after creation
+                    currentUser.auth(payerWallet, authKey, (finalAck) => {
+                        console.log('Final auth response:', finalAck);
+                        if (finalAck.err) {
+                            throw new Error(finalAck.err);
+                        }
+                    });
+                });
+            }
         });
-
-        // If auth fails, try to create user and auth again
-        if (authResult.err) {
-            console.log('Auth failed, attempting user creation...');
-            await new Promise((resolve, reject) => {
-                currentUser.create(payerWallet, authKey, (ack) => {
-                    console.log('Create response:', ack);
-                    if (ack.err && !ack.err.includes('already created')) {
-                        reject(new Error(ack.err));
-                    } else {
-                        resolve();
-                    }
-                });
-            });
-
-            // Try auth again after creation
-            await new Promise((resolve, reject) => {
-                currentUser.auth(payerWallet, authKey, (ack) => {
-                    console.log('Final auth response:', ack);
-                    if (ack.err) {
-                        reject(new Error(ack.err));
-                    } else {
-                        resolve();
-                    }
-                });
-            });
-        }
 
         // Store wallet data after successful auth
         const walletData = {
