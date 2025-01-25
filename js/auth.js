@@ -45,25 +45,40 @@ async function connectWallet() {
 
         currentUser = gun.user();
         
-        // Try to create user first (idempotent operation)
-        await new Promise((resolve) => {
-            currentUser.create(payerWallet, authKey, (ack) => {
-                console.log('Create response:', ack);
-                resolve();
+        // Try to authenticate first
+        const authResult = await new Promise((resolve) => {
+            currentUser.auth(payerWallet, authKey, (ack) => {
+                console.log('Initial auth response:', ack);
+                resolve(ack);
             });
         });
 
-        // Then authenticate
-        await new Promise((resolve, reject) => {
-            currentUser.auth(payerWallet, authKey, (ack) => {
-                console.log('Auth response:', ack);
-                if (ack.err) {
-                    reject(new Error(ack.err));
-                } else {
-                    resolve();
-                }
+        // If auth fails, try to create user and auth again
+        if (authResult.err) {
+            console.log('Auth failed, attempting user creation...');
+            await new Promise((resolve, reject) => {
+                currentUser.create(payerWallet, authKey, (ack) => {
+                    console.log('Create response:', ack);
+                    if (ack.err && !ack.err.includes('already created')) {
+                        reject(new Error(ack.err));
+                    } else {
+                        resolve();
+                    }
+                });
             });
-        });
+
+            // Try auth again after creation
+            await new Promise((resolve, reject) => {
+                currentUser.auth(payerWallet, authKey, (ack) => {
+                    console.log('Final auth response:', ack);
+                    if (ack.err) {
+                        reject(new Error(ack.err));
+                    } else {
+                        resolve();
+                    }
+                });
+            });
+        }
 
         // Store wallet data after successful auth
         const walletData = {
