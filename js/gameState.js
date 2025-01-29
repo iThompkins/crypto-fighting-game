@@ -4,8 +4,6 @@ const gameState = {
   gameStarted: false
 };
 
-// Initialize networking when the game loads
-window.addEventListener('load', initializeNetworking);
 
 function startCountdown() {
   const countdownOverlay = document.getElementById('countdown-overlay');

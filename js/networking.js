@@ -2,6 +2,9 @@ let peer = null;
 let conn = null;
 let isHost = false;
 
+// Initialize networking when the game loads
+window.addEventListener('load', initializeNetworking);
+
 async function initializeNetworking() {
     // Wait for wallet connection
     const wallet = await connectWallet();
