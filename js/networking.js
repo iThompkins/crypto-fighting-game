@@ -2,15 +2,20 @@ let peer = null;
 let conn = null;
 let isHost = false;
 
-function initializeNetworking() {
-    // Create a random peer ID
-    const peerId = Math.random().toString(36).substring(7);
+async function initializeNetworking() {
+    // Wait for wallet connection
+    const wallet = await connectWallet();
+    if (!wallet) return;
+
+    // Create a peer ID based on wallet address
+    const peerId = wallet.address.slice(2, 12); // Use first 10 chars of address
     peer = new Peer(peerId);
 
     peer.on('open', (id) => {
         console.log('My peer ID is: ' + id);
         document.getElementById('auth-container').innerHTML = `
             <div style="text-align: center;">
+                <p>Connected with wallet: ${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}</p>
                 <p>Your game ID: ${id}</p>
                 <input id="peer-id-input" placeholder="Enter friend's game ID" style="margin: 10px; padding: 5px;">
                 <button onclick="connectToPeer()" style="padding: 10px;">Join Game</button>
