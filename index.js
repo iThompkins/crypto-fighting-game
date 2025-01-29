@@ -272,30 +272,6 @@ function animate() {
 
 animate()
 
-// Initialize auth
-document.getElementById('connect-wallet').addEventListener('click', async () => {
-  if (await connectWallet()) {
-    document.getElementById('auth-container').style.display = 'none';
-    
-    if (!gameState.player1Connected) {
-      gameState.player1Connected = true;
-      player.show();
-    } else if (!gameState.player2Connected) {
-      gameState.player2Connected = true;
-      enemy.show();
-      startCountdown();
-    }
-  }
-});
-
-// Listen for opponent moves
-gun.get('gameMoves').map().on((move, id) => {
-  if (move && playerWallet && move.player !== playerWallet.address) {
-    console.log('Received move:', move);
-    // TODO: Implement move validation and game state update
-  }
-});
-
 let currentKeys = new Set();
 
 window.addEventListener('keydown', (event) => {
@@ -362,10 +338,11 @@ window.addEventListener('keyup', (event) => {
   }
 })
 
-// Emit moves at fixed intervals
+// Send moves to peer
 setInterval(() => {
   if (currentKeys.size > 0) {
-    const moveString = Array.from(currentKeys).join('+');
-    emitGameMove(moveString);
+    sendGameMove({
+      keys: Array.from(currentKeys)
+    });
   }
-}, FRAME_INTERVAL);
+}, 1000 / 30);  // 30fps update rate
