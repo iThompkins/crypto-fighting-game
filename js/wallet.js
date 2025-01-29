@@ -10,9 +10,21 @@ async function checkExistingWallet() {
             method: 'eth_decrypt',
             params: [encryptedWallet, accounts[0]]
         });
-        return JSON.parse(decryptedWallet);
+        
+        // Parse the decrypted wallet data
+        try {
+            return JSON.parse(decryptedWallet);
+        } catch {
+            // If parsing fails, remove invalid data and return null
+            localStorage.removeItem(WALLET_STORAGE_KEY);
+            return null;
+        }
     } catch (error) {
         console.error('Error decrypting wallet:', error);
+        if (error.code === 4001) {
+            // User rejected decryption
+            throw new Error('Please allow decryption in MetaMask to continue');
+        }
         return null;
     }
 }
@@ -25,22 +37,30 @@ async function generateAndEncryptWallet() {
         // Get MetaMask account
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         
-        // Encrypt wallet data
-        const encryptedWallet = await window.ethereum.request({
-            method: 'eth_encrypt',
-            params: [
-                JSON.stringify({
-                    address: wallet.address,
-                    privateKey: wallet.privateKey
-                }),
-                accounts[0]
-            ]
+        // Get encryption public key from MetaMask
+        const encryptionPublicKey = await window.ethereum.request({
+            method: 'eth_getEncryptionPublicKey',
+            params: [accounts[0]]
+        });
+        
+        // Encrypt the wallet data using MetaMask's public key
+        const encryptedMessage = ethers.utils.encryptDataV2({
+            publicKey: encryptionPublicKey,
+            data: JSON.stringify({
+                address: wallet.address,
+                privateKey: wallet.privateKey
+            }),
+            version: 'x25519-xsalsa20-poly1305'
         });
         
         // Store encrypted wallet
-        localStorage.setItem(WALLET_STORAGE_KEY, encryptedWallet);
+        localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify(encryptedMessage));
         return wallet;
     } catch (error) {
+        if (error.code === 4001) {
+            // User rejected encryption permission
+            throw new Error('Please allow encryption permission in MetaMask to continue');
+        }
         console.error('Error generating wallet:', error);
         throw error;
     }
