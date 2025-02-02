@@ -5,8 +5,12 @@ async function checkExistingWallet() {
     if (!encryptedWallet) return null;
 
     try {
-        // Get MetaMask account for password
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        if (!window.ethereum) return null;
+        
+        // Just check if MetaMask is connected, don't request accounts yet
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (!accounts || accounts.length === 0) return null;
+        
         const password = accounts[0]; // Use MetaMask address as password
         
         // Decrypt the wallet
@@ -29,12 +33,8 @@ async function generateAndEncryptWallet() {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         const password = accounts[0]; // Use MetaMask address as password
         
-        // Encrypt wallet with reduced complexity for faster processing
-        const encryptedWallet = await wallet.encrypt(password, {
-            scrypt: {
-                N: 64 // Reduced from default 131072
-            }
-        });
+        // Encrypt wallet using default security settings
+        const encryptedWallet = await wallet.encrypt(password);
         
         // Store encrypted wallet
         localStorage.setItem(WALLET_STORAGE_KEY, encryptedWallet);

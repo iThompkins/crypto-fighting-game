@@ -3,13 +3,29 @@ let conn = null;
 let isHost = false;
 
 // Initialize networking when the game loads
-window.addEventListener('load', initializeNetworking);
+window.addEventListener('load', checkWalletAndInit);
+
+async function checkWalletAndInit() {
+    const existingWallet = await checkExistingWallet();
+    if (existingWallet) {
+        initializePeer(existingWallet);
+    } else {
+        // Show join button if no wallet exists
+        document.getElementById('auth-container').innerHTML = `
+            <button onclick="initializeNetworking()" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px;">
+                Join Game
+            </button>
+        `;
+    }
+}
 
 async function initializeNetworking() {
-    // Wait for wallet connection
     const wallet = await connectWallet();
     if (!wallet) return;
+    initializePeer(wallet);
+}
 
+function initializePeer(wallet) {
     // Create a peer ID based on wallet address
     const peerId = wallet.address.slice(2, 12); // Use first 10 chars of address
     peer = new Peer(peerId);
