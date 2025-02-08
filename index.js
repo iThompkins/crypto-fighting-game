@@ -266,24 +266,16 @@ window.addEventListener('keydown', (event) => {
       case 'd':
         keys.d.pressed = true
         player.lastKey = 'd'
-        updatePlayerState()
-        player.update()
         break
       case 'a':
         keys.a.pressed = true
         player.lastKey = 'a'
-        updatePlayerState()
-        player.update()
         break
       case 'w':
         player.velocity.y = -20
-        updatePlayerState()
-        player.update()
         break
       case ' ':
         player.attack()
-        updatePlayerState()
-        player.update()
         break
     }
   }
@@ -331,9 +323,14 @@ window.addEventListener('keyup', (event) => {
   }
 })
 
-// Send moves to peer
+// Update local state and send moves to peer
 setInterval(() => {
   if (currentKeys.size > 0) {
+    // Update local player state
+    updatePlayerState();
+    player.update();
+    
+    // Send move to peer
     sendGameMove({
       keys: Array.from(currentKeys)
     });
