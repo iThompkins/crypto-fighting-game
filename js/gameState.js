@@ -1,7 +1,8 @@
 const gameState = {
   player1Connected: false,
   player2Connected: false,
-  gameStarted: false
+  gameStarted: false,
+  animationStarted: false
 };
 
 

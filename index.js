@@ -164,8 +164,9 @@ const keys = {
   }
 }
 
+let animationId;
 function animate() {
-  window.requestAnimationFrame(animate)
+  animationId = window.requestAnimationFrame(animate)
   c.fillStyle = 'black'
   c.fillRect(0, 0, canvas.width, canvas.height)
   background.update()
@@ -173,9 +174,11 @@ function animate() {
   c.fillStyle = 'rgba(255, 255, 255, 0.15)'
   c.fillRect(0, 0, canvas.width, canvas.height)
   
+  // Always update player 1 if connected
   if (gameState.player1Connected) {
     player.update()
   }
+  // Only update enemy when player 2 is connected
   if (gameState.player2Connected) {
     enemy.update()
   }

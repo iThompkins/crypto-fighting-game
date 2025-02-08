@@ -48,6 +48,11 @@ function initializePeer(wallet) {
                 <button onclick="connectToPeer()" style="padding: 10px;">Join Game</button>
             </div>
         `;
+        
+        // Start rendering the game immediately after wallet connection
+        gameState.player1Connected = true;
+        player.show();
+        animate(); // Start the game loop
     });
 
     peer.on('connection', (connection) => {
