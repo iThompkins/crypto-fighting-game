@@ -51,8 +51,10 @@ async function connectWallet() {
         return null;
     }
 
-    document.getElementById('wallet-button-text').style.display = 'none';
-    document.getElementById('wallet-loader').style.display = 'block';
+    const buttonText = document.getElementById('wallet-button-text');
+    const loader = document.getElementById('wallet-loader');
+    if (buttonText) buttonText.style.display = 'none';
+    if (loader) loader.style.display = 'block';
 
     try {
         let wallet = await checkExistingWallet();
@@ -65,7 +67,9 @@ async function connectWallet() {
         alert('Error connecting wallet: ' + error.message);
         return null;
     } finally {
-        document.getElementById('wallet-button-text').style.display = 'block';
-        document.getElementById('wallet-loader').style.display = 'none';
+        const buttonText = document.getElementById('wallet-button-text');
+        const loader = document.getElementById('wallet-loader');
+        if (buttonText) buttonText.style.display = 'block';
+        if (loader) loader.style.display = 'none';
     }
 }

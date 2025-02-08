@@ -20,9 +20,17 @@ async function checkWalletAndInit() {
 }
 
 async function initializeNetworking() {
-    const wallet = await connectWallet();
-    if (!wallet) return;
-    initializePeer(wallet);
+    try {
+        const wallet = await connectWallet();
+        if (!wallet) {
+            alert('Failed to connect wallet. Please try again.');
+            return;
+        }
+        initializePeer(wallet);
+    } catch (error) {
+        console.error('Networking initialization error:', error);
+        alert('Failed to initialize networking. Please try again.');
+    }
 }
 
 function initializePeer(wallet) {
