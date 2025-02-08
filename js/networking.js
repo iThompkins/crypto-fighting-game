@@ -99,22 +99,10 @@ function sendGameMove(moveData) {
 
 function handleGameData(data) {
     if (!data.keys) return;
-    
+    updatePlayerState(data.keys);
     if (isHost) {
-        // Update enemy (player 2) state
-        keys.ArrowLeft.pressed = data.keys.includes('ArrowLeft');
-        keys.ArrowRight.pressed = data.keys.includes('ArrowRight');
-        if (data.keys.includes('ArrowUp')) enemy.velocity.y = -20;
-        if (data.keys.includes('ArrowDown')) enemy.attack();
-        updatePlayerState();
-        enemy.update();
+        player2.update();
     } else {
-        // Update player 1 state
-        keys.a.pressed = data.keys.includes('a');
-        keys.d.pressed = data.keys.includes('d');
-        if (data.keys.includes('w')) player.velocity.y = -20;
-        if (data.keys.includes(' ')) player.attack();
-        updatePlayerState();
         player.update();
     }
 }

@@ -86,7 +86,7 @@ const player = new Fighter({
   }
 })
 
-const enemy = new Fighter({
+const player2 = new Fighter({
   position: {
     x: 400,
     y: 100
@@ -164,94 +164,83 @@ const keys = {
   }
 }
 
-function updatePlayerState() {
+function updatePlayerState(keys) {
   player.velocity.x = 0
-  enemy.velocity.x = 0
+  player2.velocity.x = 0
 
-  // player movement
+  // Update movement based on keys
+  if (isHost) {
+    // Player 1 movement
+    if (keys.includes('a')) {
+      player.velocity.x = -5
+      player.switchSprite('run')
+    } else if (keys.includes('d')) {
+      player.velocity.x = 5
+      player.switchSprite('run')
+    } else {
+      player.switchSprite('idle')
+    }
 
-  if (keys.a.pressed && player.lastKey === 'a') {
-    player.velocity.x = -5
-    player.switchSprite('run')
-  } else if (keys.d.pressed && player.lastKey === 'd') {
-    player.velocity.x = 5
-    player.switchSprite('run')
+    // Player 1 jumping/attacking
+    if (keys.includes('w')) {
+      player.velocity.y = -20
+      player.switchSprite('jump')
+    } else if (player.velocity.y > 0) {
+      player.switchSprite('fall')
+    }
+    if (keys.includes(' ')) {
+      player.attack()
+    }
   } else {
-    player.switchSprite('idle')
+    // Player 2 movement
+    if (keys.includes('ArrowLeft')) {
+      player2.velocity.x = -5
+      player2.switchSprite('run')
+    } else if (keys.includes('ArrowRight')) {
+      player2.velocity.x = 5
+      player2.switchSprite('run')
+    } else {
+      player2.switchSprite('idle')
+    }
+
+    // Player 2 jumping/attacking
+    if (keys.includes('ArrowUp')) {
+      player2.velocity.y = -20
+      player2.switchSprite('jump')
+    } else if (player2.velocity.y > 0) {
+      player2.switchSprite('fall')
+    }
+    if (keys.includes('ArrowDown')) {
+      player2.attack()
+    }
   }
 
-  // jumping
-  if (player.velocity.y < 0) {
-    player.switchSprite('jump')
-  } else if (player.velocity.y > 0) {
-    player.switchSprite('fall')
-  }
-
-  // Enemy movement
-  if (keys.ArrowLeft.pressed && enemy.lastKey === 'ArrowLeft') {
-    enemy.velocity.x = -5
-    enemy.switchSprite('run')
-  } else if (keys.ArrowRight.pressed && enemy.lastKey === 'ArrowRight') {
-    enemy.velocity.x = 5
-    enemy.switchSprite('run')
-  } else {
-    enemy.switchSprite('idle')
-  }
-
-  // jumping
-  if (enemy.velocity.y < 0) {
-    enemy.switchSprite('jump')
-  } else if (enemy.velocity.y > 0) {
-    enemy.switchSprite('fall')
-  }
-
-  // detect for collision & enemy gets hit
-  if (
-    rectangularCollision({
-      rectangle1: player,
-      rectangle2: enemy
-    }) &&
-    player.isAttacking &&
-    player.framesCurrent === 4
-  ) {
-    enemy.takeHit()
+  // Collision detection
+  if (rectangularCollision({rectangle1: player, rectangle2: player2}) &&
+      player.isAttacking && player.framesCurrent === 4) {
+    player2.takeHit()
     player.isAttacking = false
-
-    gsap.to('#enemyHealth', {
-      width: enemy.health + '%'
-    })
+    gsap.to('#player2Health', {width: player2.health + '%'})
   }
 
-  // if player misses
+  if (rectangularCollision({rectangle1: player2, rectangle2: player}) &&
+      player2.isAttacking && player2.framesCurrent === 2) {
+    player.takeHit()
+    player2.isAttacking = false
+    gsap.to('#playerHealth', {width: player.health + '%'})
+  }
+
+  // Reset attack states
   if (player.isAttacking && player.framesCurrent === 4) {
     player.isAttacking = false
   }
-
-  // this is where our player gets hit
-  if (
-    rectangularCollision({
-      rectangle1: enemy,
-      rectangle2: player
-    }) &&
-    enemy.isAttacking &&
-    enemy.framesCurrent === 2
-  ) {
-    player.takeHit()
-    enemy.isAttacking = false
-
-    gsap.to('#playerHealth', {
-      width: player.health + '%'
-    })
+  if (player2.isAttacking && player2.framesCurrent === 2) {
+    player2.isAttacking = false
   }
 
-  // if player misses
-  if (enemy.isAttacking && enemy.framesCurrent === 2) {
-    enemy.isAttacking = false
-  }
-
-  // end game based on health
-  if (enemy.health <= 0 || player.health <= 0) {
-    determineWinner({ player, enemy, timerId })
+  // Check win condition
+  if (player2.health <= 0 || player.health <= 0) {
+    determineWinner({ player, player2, timerId })
   }
 }
 
