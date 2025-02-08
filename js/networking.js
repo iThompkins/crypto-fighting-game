@@ -52,7 +52,7 @@ function initializePeer(wallet) {
         // Start rendering the game immediately after wallet connection
         gameState.player1Connected = true;
         player.show();
-        animate(); // Start the game loop
+        renderEnvironment(); // Start the environment render loop
     });
 
     peer.on('connection', (connection) => {
@@ -106,11 +106,15 @@ function handleGameData(data) {
         keys.ArrowRight.pressed = data.keys.includes('ArrowRight');
         if (data.keys.includes('ArrowUp')) enemy.velocity.y = -20;
         if (data.keys.includes('ArrowDown')) enemy.attack();
+        updatePlayerState();
+        enemy.update();
     } else {
         // Update player 1 state
         keys.a.pressed = data.keys.includes('a');
         keys.d.pressed = data.keys.includes('d');
         if (data.keys.includes('w')) player.velocity.y = -20;
         if (data.keys.includes(' ')) player.attack();
+        updatePlayerState();
+        player.update();
     }
 }

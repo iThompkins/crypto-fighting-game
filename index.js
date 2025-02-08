@@ -164,25 +164,7 @@ const keys = {
   }
 }
 
-let animationId;
-function animate() {
-  animationId = window.requestAnimationFrame(animate)
-  c.fillStyle = 'black'
-  c.fillRect(0, 0, canvas.width, canvas.height)
-  background.update()
-  shop.update()
-  c.fillStyle = 'rgba(255, 255, 255, 0.15)'
-  c.fillRect(0, 0, canvas.width, canvas.height)
-  
-  // Always update player 1 if connected
-  if (gameState.player1Connected) {
-    player.update()
-  }
-  // Only update enemy when player 2 is connected
-  if (gameState.player2Connected) {
-    enemy.update()
-  }
-
+function updatePlayerState() {
   player.velocity.x = 0
   enemy.velocity.x = 0
 
@@ -284,16 +266,24 @@ window.addEventListener('keydown', (event) => {
       case 'd':
         keys.d.pressed = true
         player.lastKey = 'd'
+        updatePlayerState()
+        player.update()
         break
       case 'a':
         keys.a.pressed = true
         player.lastKey = 'a'
+        updatePlayerState()
+        player.update()
         break
       case 'w':
         player.velocity.y = -20
+        updatePlayerState()
+        player.update()
         break
       case ' ':
         player.attack()
+        updatePlayerState()
+        player.update()
         break
     }
   }
