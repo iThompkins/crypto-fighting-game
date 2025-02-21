@@ -244,6 +244,15 @@ function updatePlayerState(keys) {
   }
 }
 
+function animate() {
+  window.requestAnimationFrame(animate)
+
+  // Only update game state if both players are connected and game has started
+  if (gameState.player1Connected && gameState.player2Connected && gameState.gameStarted) {
+    updatePlayerState(Array.from(currentKeys))
+  }
+}
+
 animate()
 
 let currentKeys = new Set();
