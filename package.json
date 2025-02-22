@@ -1,0 +1,14 @@
+{
+  "name": "fighting-game",
+  "version": "1.0.0",
+  "description": "A multiplayer fighting game",
+  "scripts": {
+    "dev": "node dev-server.js",
+    "start": "python3 -m http.server 8080"
+  },
+  "devDependencies": {
+    "chokidar": "^3.5.3",
+    "esbuild": "^0.19.11",
+    "serve-handler": "^6.1.5"
+  }
+}
