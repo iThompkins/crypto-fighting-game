@@ -12,6 +12,7 @@ class Sprite {
     this.image = new Image()
     this.image.src = imageSrc
     this.loaded = false
+    this.visible = true // Default to visible
     this.image.onload = () => {
       this.loaded = true
     }
