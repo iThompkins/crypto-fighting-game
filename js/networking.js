@@ -52,7 +52,6 @@ function initializePeer(wallet) {
         // Start rendering the game immediately after wallet connection
         gameState.player1Connected = true;
         player.show();
-        renderEnvironment(); // Start the environment render loop
     });
 
     peer.on('connection', (connection) => {

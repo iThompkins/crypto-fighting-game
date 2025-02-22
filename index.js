@@ -247,9 +247,27 @@ function updatePlayerState(keys) {
 function animate() {
   window.requestAnimationFrame(animate)
 
-  // Only update game state if both players are connected and game has started
+  // Clear canvas and draw background elements
+  c.fillStyle = 'black'
+  c.fillRect(0, 0, canvas.width, canvas.height)
+  background.update()
+  shop.update()
+
+  // Add overlay effect
+  c.fillStyle = 'rgba(255, 255, 255, 0.15)'
+  c.fillRect(0, 0, canvas.width, canvas.height)
+
+  // Update game state if both players are connected and game has started
   if (gameState.player1Connected && gameState.player2Connected && gameState.gameStarted) {
     updatePlayerState(Array.from(currentKeys))
+  }
+
+  // Draw players
+  if (gameState.player1Connected) {
+    player.update()
+  }
+  if (gameState.player2Connected) {
+    player2.update()
   }
 }
 
