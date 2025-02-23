@@ -256,41 +256,23 @@ let currentKeys = new Set();
 
 window.addEventListener('keydown', (event) => {
   currentKeys.add(event.key);
-  if (!player.dead) {
+  const controlledPlayer = isHost ? player : player2;
+  
+  if (!controlledPlayer.dead) {
     switch (event.key) {
       case 'd':
-        keys.d.pressed = true
-        player.lastKey = 'd'
+      case 'ArrowRight':
+        controlledPlayer.lastKey = event.key
         break
       case 'a':
-        keys.a.pressed = true
-        player.lastKey = 'a'
+      case 'ArrowLeft':
+        controlledPlayer.lastKey = event.key
         break
       case 'w':
-        player.velocity.y = -20
+      case 'ArrowUp':
         break
       case ' ':
-        player.attack()
-        break
-    }
-  }
-
-  if (!player2.dead) {
-    switch (event.key) {
-      case 'ArrowRight':
-        keys.ArrowRight.pressed = true
-        player2.lastKey = 'ArrowRight'
-        break
-      case 'ArrowLeft':
-        keys.ArrowLeft.pressed = true
-        player2.lastKey = 'ArrowLeft'
-        break
-      case 'ArrowUp':
-        player2.velocity.y = -20
-        break
       case 'ArrowDown':
-        player2.attack()
-
         break
     }
   }
@@ -320,13 +302,10 @@ window.addEventListener('keyup', (event) => {
 
 // Update local state and send moves to peer
 setInterval(() => {
-  if (currentKeys.size > 0 && gameState.gameStarted) {
-    // Update local player state
-    updatePlayerState(Array.from(currentKeys));
-    
-    // Send move to peer
+  if (gameState.gameStarted) {
+    // Always send current state to peer, even if no keys are pressed
     sendGameMove({
       keys: Array.from(currentKeys)
     });
   }
-}, 1000 / 30);  // 30fps update rate
+}, 1000 / 60);  // 60fps update rate for smoother animation

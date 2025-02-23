@@ -139,10 +139,36 @@ function sendGameMove(moveData) {
 
 function handleGameData(data) {
     if (!data.keys) return;
-    updatePlayerState(data.keys);
-    if (isHost) {
-        player2.update();
+    
+    // Update the opponent's state based on received keys
+    const opponentPlayer = isHost ? player2 : player;
+    const keys = data.keys;
+    
+    // Movement
+    opponentPlayer.velocity.x = 0;
+    if (keys.includes('a') || keys.includes('ArrowLeft')) {
+        opponentPlayer.velocity.x = -5;
+        opponentPlayer.switchSprite('run');
+    } else if (keys.includes('d') || keys.includes('ArrowRight')) {
+        opponentPlayer.velocity.x = 5;
+        opponentPlayer.switchSprite('run');
     } else {
-        player.update();
+        opponentPlayer.switchSprite('idle');
     }
+
+    // Jumping
+    if (keys.includes('w') || keys.includes('ArrowUp')) {
+        opponentPlayer.velocity.y = -20;
+        opponentPlayer.switchSprite('jump');
+    } else if (opponentPlayer.velocity.y > 0) {
+        opponentPlayer.switchSprite('fall');
+    }
+
+    // Attacking
+    if (keys.includes(' ') || keys.includes('ArrowDown')) {
+        opponentPlayer.attack();
+    }
+
+    // Update opponent position
+    opponentPlayer.update();
 }
