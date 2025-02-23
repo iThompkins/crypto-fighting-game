@@ -106,10 +106,16 @@ function handleConnection() {
             // Host is always player 1
             gameState.player1Connected = true;
             player.show();
+            gameState.player2Connected = true;
+            player2.show();
             // Tell the other peer they're player 2
             conn.send({ type: 'playerAssignment', isPlayer2: true });
+            // Host starts countdown
+            startCountdown();
         } else {
-            // Joiner waits for player assignment
+            // Joiner is always player 2
+            gameState.player1Connected = true;
+            player.show();
             gameState.player2Connected = true;
             player2.show();
         }
@@ -117,10 +123,7 @@ function handleConnection() {
 
     conn.on('data', (data) => {
         if (data.type === 'playerAssignment') {
-            // Confirm player 2 assignment
-            gameState.player2Connected = true;
-            player2.show();
-            // Start the game once both players are ready
+            // Start countdown for player 2
             startCountdown();
         } else {
             handleGameData(data);

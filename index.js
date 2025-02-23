@@ -168,51 +168,30 @@ function updatePlayerState(keys) {
   player.velocity.x = 0
   player2.velocity.x = 0
 
-  // Update movement based on keys
-  if (isHost) {  // Host controls player 1
-    // Player 1 movement
-    if (keys.includes('a')) {
-      player.velocity.x = -5
-      player.switchSprite('run')
-    } else if (keys.includes('d')) {
-      player.velocity.x = 5
-      player.switchSprite('run')
-    } else {
-      player.switchSprite('idle')
-    }
-
-    // Player 1 jumping/attacking
-    if (keys.includes('w')) {
-      player.velocity.y = -20
-      player.switchSprite('jump')
-    } else if (player.velocity.y > 0) {
-      player.switchSprite('fall')
-    }
-    if (keys.includes(' ')) {
-      player.attack()
-    }
+  const controlledPlayer = isHost ? player : player2;
+  
+  // Movement (both WASD and arrow keys)
+  if (keys.includes('a') || keys.includes('ArrowLeft')) {
+    controlledPlayer.velocity.x = -5
+    controlledPlayer.switchSprite('run')
+  } else if (keys.includes('d') || keys.includes('ArrowRight')) {
+    controlledPlayer.velocity.x = 5
+    controlledPlayer.switchSprite('run')
   } else {
-    // Player 2 movement
-    if (keys.includes('ArrowLeft')) {
-      player2.velocity.x = -5
-      player2.switchSprite('run')
-    } else if (keys.includes('ArrowRight')) {
-      player2.velocity.x = 5
-      player2.switchSprite('run')
-    } else {
-      player2.switchSprite('idle')
-    }
+    controlledPlayer.switchSprite('idle')
+  }
 
-    // Player 2 jumping/attacking
-    if (keys.includes('ArrowUp')) {
-      player2.velocity.y = -20
-      player2.switchSprite('jump')
-    } else if (player2.velocity.y > 0) {
-      player2.switchSprite('fall')
-    }
-    if (keys.includes('ArrowDown')) {
-      player2.attack()
-    }
+  // Jumping (both W and Up arrow)
+  if (keys.includes('w') || keys.includes('ArrowUp')) {
+    controlledPlayer.velocity.y = -20
+    controlledPlayer.switchSprite('jump')
+  } else if (controlledPlayer.velocity.y > 0) {
+    controlledPlayer.switchSprite('fall')
+  }
+
+  // Attacking (both spacebar and Down arrow)
+  if (keys.includes(' ') || keys.includes('ArrowDown')) {
+    controlledPlayer.attack()
   }
 
   // Collision detection
