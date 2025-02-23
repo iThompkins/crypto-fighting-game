@@ -60,11 +60,11 @@ function initializePeer(wallet = null) {
         if (wallet) {
             document.getElementById('peer-id-display').innerHTML = `
                 <p>Connected with wallet: ${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}</p>
-                <p>Your game ID: ${id}</p>
+                <p>Your game ID: <span style="background: rgba(255,255,255,0.1); padding: 5px; border-radius: 4px;">${id}</span></p>
             `;
         } else {
             document.getElementById('peer-id-display').innerHTML = `
-                <p>Your game ID: ${id}</p>
+                <p>Your game ID: <span style="background: rgba(255,255,255,0.1); padding: 5px; border-radius: 4px;">${id}</span></p>
             `;
         }
         
@@ -85,6 +85,17 @@ function connectToPeer() {
     conn = peer.connect(peerId);
     isHost = false;
     handleConnection();
+}
+
+function copyPeerId(element) {
+    const idText = element.querySelector('span').textContent;
+    navigator.clipboard.writeText(idText).then(() => {
+        // Visual feedback
+        const span = element.querySelector('span');
+        const originalBg = span.style.background;
+        span.style.background = 'rgba(255,255,255,0.3)';
+        setTimeout(() => span.style.background = originalBg, 200);
+    });
 }
 
 function handleConnection() {

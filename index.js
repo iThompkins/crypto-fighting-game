@@ -296,21 +296,21 @@ window.addEventListener('keydown', (event) => {
     }
   }
 
-  if (!enemy.dead) {
+  if (!player2.dead) {
     switch (event.key) {
       case 'ArrowRight':
         keys.ArrowRight.pressed = true
-        enemy.lastKey = 'ArrowRight'
+        player2.lastKey = 'ArrowRight'
         break
       case 'ArrowLeft':
         keys.ArrowLeft.pressed = true
-        enemy.lastKey = 'ArrowLeft'
+        player2.lastKey = 'ArrowLeft'
         break
       case 'ArrowUp':
-        enemy.velocity.y = -20
+        player2.velocity.y = -20
         break
       case 'ArrowDown':
-        enemy.attack()
+        player2.attack()
 
         break
     }
@@ -341,10 +341,9 @@ window.addEventListener('keyup', (event) => {
 
 // Update local state and send moves to peer
 setInterval(() => {
-  if (currentKeys.size > 0) {
+  if (currentKeys.size > 0 && gameState.gameStarted) {
     // Update local player state
-    updatePlayerState();
-    player.update();
+    updatePlayerState(Array.from(currentKeys));
     
     // Send move to peer
     sendGameMove({
