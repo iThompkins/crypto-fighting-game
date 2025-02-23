@@ -1,9 +1,26 @@
 let peer = null;
 let conn = null;
 let isHost = false;
+let gameMode = null;
+
+function selectMode(mode) {
+  gameMode = mode;
+  document.getElementById('mode-select').style.display = 'none';
+  
+  if (mode === 'wallet') {
+    document.getElementById('wallet-connect').style.display = 'block';
+    checkWalletAndInit();
+  } else {
+    document.getElementById('freeplay-connect').style.display = 'block';
+    initializePeer();
+  }
+}
 
 // Initialize networking when the game loads
-window.addEventListener('load', checkWalletAndInit);
+window.addEventListener('load', () => {
+  // Show mode selection by default
+  document.getElementById('mode-select').style.display = 'block';
+});
 
 async function checkWalletAndInit() {
     const existingWallet = await checkExistingWallet();
@@ -33,21 +50,23 @@ async function initializeNetworking() {
     }
 }
 
-function initializePeer(wallet) {
-    // Create a peer ID based on wallet address
-    const peerId = wallet.address.slice(2, 12); // Use first 10 chars of address
+function initializePeer(wallet = null) {
+    // Create a random peer ID for freeplay mode or use wallet address
+    const peerId = wallet ? wallet.address.slice(2, 12) : Math.random().toString(36).substr(2, 10);
     peer = new Peer(peerId);
 
     peer.on('open', (id) => {
         console.log('My peer ID is: ' + id);
-        document.getElementById('auth-container').innerHTML = `
-            <div style="text-align: center;">
+        if (wallet) {
+            document.getElementById('peer-id-display').innerHTML = `
                 <p>Connected with wallet: ${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}</p>
                 <p>Your game ID: ${id}</p>
-                <input id="peer-id-input" placeholder="Enter friend's game ID" style="margin: 10px; padding: 5px;">
-                <button onclick="connectToPeer()" style="padding: 10px;">Join Game</button>
-            </div>
-        `;
+            `;
+        } else {
+            document.getElementById('peer-id-display').innerHTML = `
+                <p>Your game ID: ${id}</p>
+            `;
+        }
         
         // Start rendering the game immediately after wallet connection
         gameState.player1Connected = true;

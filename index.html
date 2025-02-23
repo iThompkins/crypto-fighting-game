@@ -14,13 +14,28 @@
   </style>
 </head>
 <body>
-  <div id="auth-container" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100;">
-    <button id="connect-wallet" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px; position: relative;">
-      <span id="wallet-button-text">Connect Wallet</span>
-      <div id="wallet-loader" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
-        <div style="width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-      </div>
-    </button>
+  <div id="auth-container" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; text-align: center;">
+    <div id="mode-select" style="margin-bottom: 20px;">
+      <button onclick="selectMode('freeplay')" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px; margin: 5px;">
+        Free Play
+      </button>
+      <button onclick="selectMode('wallet')" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px; margin: 5px;">
+        Wallet Mode
+      </button>
+    </div>
+    <div id="wallet-connect" style="display: none;">
+      <button id="connect-wallet" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px; position: relative;">
+        <span id="wallet-button-text">Connect Wallet</span>
+        <div id="wallet-loader" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+          <div style="width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        </div>
+      </button>
+    </div>
+    <div id="freeplay-connect" style="display: none;">
+      <div id="peer-id-display" style="margin: 10px; color: white;"></div>
+      <input id="peer-id-input" placeholder="Enter friend's game ID" style="margin: 10px; padding: 5px; font-family: 'Press Start 2P', cursive;">
+      <button onclick="connectToPeer()" style="padding: 10px; font-family: 'Press Start 2P', cursive;">Join Game</button>
+    </div>
     <style>
       @keyframes spin {
         0% { transform: rotate(0deg); }
