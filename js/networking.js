@@ -107,7 +107,7 @@ function handleConnection() {
             player.show();
         } else {
             gameState.player2Connected = true;
-            enemy.show();
+            player2.show();
         }
 
         if (gameState.player1Connected && gameState.player2Connected) {

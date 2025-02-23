@@ -32,6 +32,6 @@ function decreaseTimer() {
   }
 
   if (timer === 0) {
-    determineWinner({ player, enemy, timerId })
+    determineWinner({ player, player2, timerId })
   }
 }
