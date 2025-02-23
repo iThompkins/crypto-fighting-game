@@ -103,20 +103,28 @@ function handleConnection() {
         document.getElementById('auth-container').style.display = 'none';
         
         if (isHost) {
+            // Host is always player 1
             gameState.player1Connected = true;
             player.show();
+            // Tell the other peer they're player 2
+            conn.send({ type: 'playerAssignment', isPlayer2: true });
         } else {
+            // Joiner waits for player assignment
             gameState.player2Connected = true;
             player2.show();
-        }
-
-        if (gameState.player1Connected && gameState.player2Connected) {
-            startCountdown();
         }
     });
 
     conn.on('data', (data) => {
-        handleGameData(data);
+        if (data.type === 'playerAssignment') {
+            // Confirm player 2 assignment
+            gameState.player2Connected = true;
+            player2.show();
+            // Start the game once both players are ready
+            startCountdown();
+        } else {
+            handleGameData(data);
+        }
     });
 }
 

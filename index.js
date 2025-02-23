@@ -169,7 +169,7 @@ function updatePlayerState(keys) {
   player2.velocity.x = 0
 
   // Update movement based on keys
-  if (isHost) {
+  if (isHost) {  // Host controls player 1
     // Player 1 movement
     if (keys.includes('a')) {
       player.velocity.x = -5
