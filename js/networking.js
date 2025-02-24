@@ -138,49 +138,35 @@ function sendGameMove(moveData) {
 }
 
 function handleGameData(data) {
-    if (!data.keys) return;
+    if (!data.keys || !data.position || !data.velocity) return;
     
-    // Update the opponent's state based on received keys
+    // Update the opponent's state based on received data
     const opponentPlayer = isHost ? player2 : player;
-    const keys = data.keys;
     
-    // Movement
-    opponentPlayer.velocity.x = 0;
+    // Update position and velocity directly
+    opponentPlayer.position = data.position;
+    opponentPlayer.velocity = data.velocity;
+    
+    // Update visual state based on received keys
+    const keys = data.keys;
     if (keys.includes('a') || keys.includes('ArrowLeft')) {
-        opponentPlayer.velocity.x = -5;
         opponentPlayer.switchSprite('run');
-        opponentPlayer.lastKey = 'a';
     } else if (keys.includes('d') || keys.includes('ArrowRight')) {
-        opponentPlayer.velocity.x = 5;
         opponentPlayer.switchSprite('run');
-        opponentPlayer.lastKey = 'd';
     } else {
         opponentPlayer.switchSprite('idle');
     }
 
-    // Jumping
     if ((keys.includes('w') || keys.includes('ArrowUp'))) {
-        if (opponentPlayer.velocity.y === 0) {
-            opponentPlayer.velocity.y = -20;
-        }
         opponentPlayer.switchSprite('jump');
     } else if (opponentPlayer.velocity.y > 0) {
         opponentPlayer.switchSprite('fall');
     }
 
-    // Attacking
+    // Handle attacking
     if ((keys.includes(' ') || keys.includes('ArrowDown'))) {
         if (!opponentPlayer.isAttacking) {
             opponentPlayer.attack();
         }
-    }
-
-    // Update physics
-    opponentPlayer.position.y += opponentPlayer.velocity.y;
-    if (opponentPlayer.position.y + opponentPlayer.height + opponentPlayer.velocity.y >= canvas.height - 96) {
-        opponentPlayer.velocity.y = 0;
-        opponentPlayer.position.y = 330;
-    } else {
-        opponentPlayer.velocity.y += gravity;
     }
 }

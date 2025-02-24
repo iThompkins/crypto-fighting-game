@@ -165,33 +165,46 @@ const keys = {
 }
 
 function updatePlayerState(keys) {
-  player.velocity.x = 0
-  player2.velocity.x = 0
-
   const controlledPlayer = isHost ? player : player2;
+  const otherPlayer = isHost ? player2 : player;
+  
+  // Reset velocity
+  controlledPlayer.velocity.x = 0;
   
   // Movement (both WASD and arrow keys)
   if (keys.includes('a') || keys.includes('ArrowLeft')) {
-    controlledPlayer.velocity.x = -5
-    controlledPlayer.switchSprite('run')
+    controlledPlayer.velocity.x = -5;
+    controlledPlayer.switchSprite('run');
   } else if (keys.includes('d') || keys.includes('ArrowRight')) {
-    controlledPlayer.velocity.x = 5
-    controlledPlayer.switchSprite('run')
+    controlledPlayer.velocity.x = 5;
+    controlledPlayer.switchSprite('run');
   } else {
-    controlledPlayer.switchSprite('idle')
+    controlledPlayer.switchSprite('idle');
   }
 
   // Jumping (both W and Up arrow)
-  if (keys.includes('w') || keys.includes('ArrowUp')) {
-    controlledPlayer.velocity.y = -20
-    controlledPlayer.switchSprite('jump')
+  if ((keys.includes('w') || keys.includes('ArrowUp')) && controlledPlayer.velocity.y === 0) {
+    controlledPlayer.velocity.y = -20;
+    controlledPlayer.switchSprite('jump');
   } else if (controlledPlayer.velocity.y > 0) {
-    controlledPlayer.switchSprite('fall')
+    controlledPlayer.switchSprite('fall');
   }
 
   // Attacking (both spacebar and Down arrow)
   if (keys.includes(' ') || keys.includes('ArrowDown')) {
-    controlledPlayer.attack()
+    controlledPlayer.attack();
+  }
+
+  // Update position based on velocity
+  controlledPlayer.position.x += controlledPlayer.velocity.x;
+  controlledPlayer.position.y += controlledPlayer.velocity.y;
+
+  // Apply gravity
+  if (controlledPlayer.position.y + controlledPlayer.height + controlledPlayer.velocity.y >= canvas.height - 96) {
+    controlledPlayer.velocity.y = 0;
+    controlledPlayer.position.y = 330;
+  } else {
+    controlledPlayer.velocity.y += gravity;
   }
 
   // Collision detection
