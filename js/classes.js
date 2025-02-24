@@ -109,7 +109,9 @@ class Fighter extends Sprite {
 
   update() {
     this.draw()
-    if (!this.dead) this.animateFrames()
+    if (!this.dead || (this.image === this.sprites.death.image && this.framesCurrent < this.sprites.death.framesMax - 1)) {
+      this.animateFrames()
+    }
 
     // attack boxes
     this.attackBox.position.x = this.position.x + this.attackBox.offset.x
@@ -154,9 +156,11 @@ class Fighter extends Sprite {
 
   switchSprite(sprite) {
     if (this.image === this.sprites.death.image) {
-      if (this.framesCurrent === this.sprites.death.framesMax - 1)
-        this.dead = true
-      return
+      if (this.framesCurrent === this.sprites.death.framesMax - 1) {
+        this.dead = true;
+        this.framesCurrent = this.sprites.death.framesMax - 1; // Keep on last frame
+      }
+      return;
     }
 
     // overriding all other animations with the attack animation

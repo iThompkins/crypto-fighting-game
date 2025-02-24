@@ -233,12 +233,16 @@ function updatePlayerState(keys) {
   // Check win condition and handle death
   if (player.health <= 0 && !player.dead) {
     player.switchSprite('death')
-    player.dead = true
-    determineWinner({ player, player2, timerId })
+    // Only determine winner after death animation completes
+    if (player.framesCurrent === player.sprites.death.framesMax - 1) {
+      determineWinner({ player, player2, timerId })
+    }
   } else if (player2.health <= 0 && !player2.dead) {
     player2.switchSprite('death')
-    player2.dead = true
-    determineWinner({ player, player2, timerId })
+    // Only determine winner after death animation completes
+    if (player2.framesCurrent === player2.sprites.death.framesMax - 1) {
+      determineWinner({ player, player2, timerId })
+    }
   }
 }
 
