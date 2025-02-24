@@ -209,14 +209,14 @@ function updatePlayerState(keys) {
 
   // Collision detection
   if (rectangularCollision({rectangle1: player, rectangle2: player2}) &&
-      player.isAttacking && player.framesCurrent === 4) {
+      player.isAttacking && player.framesCurrent === 4 && !player2.dead) {
     player2.takeHit()
     player.isAttacking = false
     gsap.to('#player2Health', {width: player2.health + '%'})
   }
 
   if (rectangularCollision({rectangle1: player2, rectangle2: player}) &&
-      player2.isAttacking && player2.framesCurrent === 2) {
+      player2.isAttacking && player2.framesCurrent === 2 && !player.dead) {
     player.takeHit()
     player2.isAttacking = false
     gsap.to('#playerHealth', {width: player.health + '%'})
@@ -230,8 +230,14 @@ function updatePlayerState(keys) {
     player2.isAttacking = false
   }
 
-  // Check win condition
-  if (player2.health <= 0 || player.health <= 0) {
+  // Check win condition and handle death
+  if (player.health <= 0 && !player.dead) {
+    player.switchSprite('death')
+    player.dead = true
+    determineWinner({ player, player2, timerId })
+  } else if (player2.health <= 0 && !player2.dead) {
+    player2.switchSprite('death')
+    player2.dead = true
     determineWinner({ player, player2, timerId })
   }
 }
