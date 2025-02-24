@@ -149,23 +149,38 @@ function handleGameData(data) {
     if (keys.includes('a') || keys.includes('ArrowLeft')) {
         opponentPlayer.velocity.x = -5;
         opponentPlayer.switchSprite('run');
+        opponentPlayer.lastKey = 'a';
     } else if (keys.includes('d') || keys.includes('ArrowRight')) {
         opponentPlayer.velocity.x = 5;
         opponentPlayer.switchSprite('run');
+        opponentPlayer.lastKey = 'd';
     } else {
         opponentPlayer.switchSprite('idle');
     }
 
-    // Jumping - only apply if it's a new jump command
-    if ((keys.includes('w') || keys.includes('ArrowUp')) && opponentPlayer.velocity.y === 0) {
-        opponentPlayer.velocity.y = -20;
+    // Jumping
+    if ((keys.includes('w') || keys.includes('ArrowUp'))) {
+        if (opponentPlayer.velocity.y === 0) {
+            opponentPlayer.velocity.y = -20;
+        }
         opponentPlayer.switchSprite('jump');
     } else if (opponentPlayer.velocity.y > 0) {
         opponentPlayer.switchSprite('fall');
     }
 
-    // Attacking - only apply if not already attacking
-    if ((keys.includes(' ') || keys.includes('ArrowDown')) && !opponentPlayer.isAttacking) {
-        opponentPlayer.attack();
+    // Attacking
+    if ((keys.includes(' ') || keys.includes('ArrowDown'))) {
+        if (!opponentPlayer.isAttacking) {
+            opponentPlayer.attack();
+        }
+    }
+
+    // Update physics
+    opponentPlayer.position.y += opponentPlayer.velocity.y;
+    if (opponentPlayer.position.y + opponentPlayer.height + opponentPlayer.velocity.y >= canvas.height - 96) {
+        opponentPlayer.velocity.y = 0;
+        opponentPlayer.position.y = 330;
+    } else {
+        opponentPlayer.velocity.y += gravity;
     }
 }

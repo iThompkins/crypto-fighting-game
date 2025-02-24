@@ -303,9 +303,13 @@ window.addEventListener('keyup', (event) => {
 // Update local state and send moves to peer
 setInterval(() => {
   if (gameState.gameStarted) {
-    // Always send current state to peer, even if no keys are pressed
-    sendGameMove({
-      keys: Array.from(currentKeys)
-    });
+    // Send current state to peer
+    const currentState = {
+      keys: Array.from(currentKeys),
+      position: isHost ? player.position : player2.position,
+      velocity: isHost ? player.velocity : player2.velocity,
+      isAttacking: isHost ? player.isAttacking : player2.isAttacking
+    };
+    sendGameMove(currentState);
   }
 }, 1000 / 60);  // 60fps update rate for smoother animation
