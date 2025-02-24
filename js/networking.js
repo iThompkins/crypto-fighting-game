@@ -156,19 +156,16 @@ function handleGameData(data) {
         opponentPlayer.switchSprite('idle');
     }
 
-    // Jumping
-    if (keys.includes('w') || keys.includes('ArrowUp')) {
+    // Jumping - only apply if it's a new jump command
+    if ((keys.includes('w') || keys.includes('ArrowUp')) && opponentPlayer.velocity.y === 0) {
         opponentPlayer.velocity.y = -20;
         opponentPlayer.switchSprite('jump');
     } else if (opponentPlayer.velocity.y > 0) {
         opponentPlayer.switchSprite('fall');
     }
 
-    // Attacking
-    if (keys.includes(' ') || keys.includes('ArrowDown')) {
+    // Attacking - only apply if not already attacking
+    if ((keys.includes(' ') || keys.includes('ArrowDown')) && !opponentPlayer.isAttacking) {
         opponentPlayer.attack();
     }
-
-    // Update opponent position
-    opponentPlayer.update();
 }
