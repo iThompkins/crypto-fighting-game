@@ -92,9 +92,18 @@ function copyPeerId(element) {
     navigator.clipboard.writeText(idText).then(() => {
         // Visual feedback
         const span = element.querySelector('span');
+        const tooltip = document.getElementById('copy-tooltip');
         const originalBg = span.style.background;
+        
+        // Show copied feedback
         span.style.background = 'rgba(255,255,255,0.3)';
-        setTimeout(() => span.style.background = originalBg, 200);
+        tooltip.style.display = 'block';
+        
+        // Reset after delay
+        setTimeout(() => {
+            span.style.background = originalBg;
+            tooltip.style.display = 'none';
+        }, 1000);
     });
 }
 

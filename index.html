@@ -32,7 +32,11 @@
       </button>
     </div>
     <div id="freeplay-connect" style="display: none;">
-      <div id="peer-id-display" style="margin: 10px; color: white; cursor: pointer;" onclick="copyPeerId(this)"></div>
+      <div id="peer-id-display" style="margin: 10px; color: white; cursor: pointer; position: relative;" onclick="copyPeerId(this)" title="Click to copy game ID">
+        <div id="copy-tooltip" style="position: absolute; background: rgba(0,0,0,0.8); color: white; padding: 5px; border-radius: 4px; font-size: 12px; bottom: 100%; left: 50%; transform: translateX(-50%); display: none; white-space: nowrap;">
+          Copied!
+        </div>
+      </div>
       <input id="peer-id-input" placeholder="Enter friend's game ID" style="margin: 10px; padding: 5px; font-family: 'Press Start 2P', cursive;">
       <button onclick="connectToPeer()" style="padding: 10px; font-family: 'Press Start 2P', cursive;">Join Game</button>
     </div>
