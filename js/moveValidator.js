@@ -12,27 +12,72 @@ class GameMove {
   }
 
   async sign(wallet) {
-    // Create message to sign
-    const message = JSON.stringify(this.move);
-    // Sign with wallet
-    this.signature = await wallet.signMessage(message);
-    // Calculate hash after signing
+    // Create typed data for signing
+    const domain = {
+      name: 'CryptoFighter',
+      version: '1',
+      chainId: 1, // Replace with actual chain ID
+    };
+
+    const types = {
+      GameMove: [
+        { name: 'playerId', type: 'address' },
+        { name: 'prevHash', type: 'string' },
+        { name: 'keyCode', type: 'string' },
+        { name: 'timestamp', type: 'uint256' },
+        { name: 'sequence', type: 'uint256' }
+      ]
+    };
+
+    // Sign with EIP-712
+    this.signature = await wallet._signTypedData(domain, types, this.move);
     this.calculateHash();
     return this;
   }
 
   calculateHash() {
-    const data = `${this.move.playerId}:${this.move.prevHash}:${this.move.keyCode}:${this.move.timestamp}:${this.move.sequence}:${this.signature}`;
-    this.hash = btoa(data); // Simple hash for demo - use proper crypto in production
+    // Use ethers.js utils to hash the move data
+    const data = ethers.utils.defaultAbiCoder.encode(
+      ['address', 'string', 'string', 'uint256', 'uint256', 'bytes'],
+      [
+        this.move.playerId,
+        this.move.prevHash,
+        this.move.keyCode,
+        this.move.timestamp,
+        this.move.sequence,
+        this.signature || '0x'
+      ]
+    );
+    this.hash = ethers.utils.keccak256(data);
     return this.hash;
   }
 
   verify() {
-    // Verify signature matches move data
-    const message = JSON.stringify(this.move);
     try {
-      const recoveredAddr = ethers.utils.verifyMessage(message, this.signature);
-      return recoveredAddr === this.move.playerId;
+      const domain = {
+        name: 'CryptoFighter',
+        version: '1',
+        chainId: 1, // Replace with actual chain ID
+      };
+
+      const types = {
+        GameMove: [
+          { name: 'playerId', type: 'address' },
+          { name: 'prevHash', type: 'string' },
+          { name: 'keyCode', type: 'string' },
+          { name: 'timestamp', type: 'uint256' },
+          { name: 'sequence', type: 'uint256' }
+        ]
+      };
+
+      // Verify EIP-712 signature
+      const recoveredAddr = ethers.utils.verifyTypedData(
+        domain,
+        types,
+        this.move,
+        this.signature
+      );
+      return recoveredAddr.toLowerCase() === this.move.playerId.toLowerCase();
     } catch (e) {
       console.error('Signature verification failed:', e);
       return false;
