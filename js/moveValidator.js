@@ -48,11 +48,13 @@ class MoveValidator {
     this.sequence = 0;
   }
 
-  createMove(keyCode) {
+  async createMove(keyCode, wallet) {
     const lastMove = Array.from(this.moveChain).pop();
     const prevHash = lastMove ? lastMove.hash : this.genesisHash;
     const move = new GameMove(this.playerId, prevHash, keyCode, Date.now());
-    move.sequence = ++this.sequence;
+    move.move.sequence = ++this.sequence;
+    // Sign the move before returning
+    await move.sign(wallet);
     return move;
   }
 
