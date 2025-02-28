@@ -1,16 +1,42 @@
 class GameMove {
   constructor(playerId, prevHash, keyCode, timestamp) {
-    this.playerId = playerId;
-    this.prevHash = prevHash;
-    this.keyCode = keyCode;
-    this.timestamp = timestamp;
-    this.sequence = 0; // Will be set when added to chain
-    this.hash = this.calculateHash();
+    this.move = {
+      playerId: playerId,
+      prevHash: prevHash,
+      keyCode: keyCode,
+      timestamp: timestamp,
+      sequence: 0 // Will be set when added to chain
+    };
+    this.signature = null;
+    this.hash = null;
+  }
+
+  async sign(wallet) {
+    // Create message to sign
+    const message = JSON.stringify(this.move);
+    // Sign with wallet
+    this.signature = await wallet.signMessage(message);
+    // Calculate hash after signing
+    this.calculateHash();
+    return this;
   }
 
   calculateHash() {
-    const data = `${this.playerId}:${this.prevHash}:${this.keyCode}:${this.timestamp}:${this.sequence}`;
-    return btoa(data); // Simple hash for demo - use proper crypto in production
+    const data = `${this.move.playerId}:${this.move.prevHash}:${this.move.keyCode}:${this.move.timestamp}:${this.move.sequence}:${this.signature}`;
+    this.hash = btoa(data); // Simple hash for demo - use proper crypto in production
+    return this.hash;
+  }
+
+  verify() {
+    // Verify signature matches move data
+    const message = JSON.stringify(this.move);
+    try {
+      const recoveredAddr = ethers.utils.verifyMessage(message, this.signature);
+      return recoveredAddr === this.move.playerId;
+    } catch (e) {
+      console.error('Signature verification failed:', e);
+      return false;
+    }
   }
 }
 
@@ -54,11 +80,17 @@ class MoveValidator {
       }
     }
 
-    // Verify the new move's previous hash points to our last move
+    // Get the new move
     const newMove = receivedMovesArr[receivedMovesArr.length - 1];
     const lastLocalMove = localMoves[localMoves.length - 1];
     
-    if (newMove.prevHash !== (lastLocalMove ? lastLocalMove.hash : this.genesisHash)) {
+    // Verify signature
+    if (!newMove.verify()) {
+      return { valid: false, reason: 'Invalid move signature' };
+    }
+
+    // Verify hash chain
+    if (newMove.move.prevHash !== (lastLocalMove ? lastLocalMove.hash : this.genesisHash)) {
       return { valid: false, reason: 'Invalid move chain' };
     }
 
