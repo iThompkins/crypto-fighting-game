@@ -2,8 +2,17 @@ const gameState = {
   player1Connected: false,
   player2Connected: false,
   gameStarted: false,
-  animationStarted: false
+  animationStarted: false,
+  moveValidator: null,
+  genesisHash: null // Will be set when game starts
 };
+
+// Initialize move validator
+function initMoveValidator(playerId) {
+  // In wallet mode, this would come from smart contract
+  gameState.genesisHash = 'genesis-' + Math.random().toString(36).substr(2);
+  gameState.moveValidator = new MoveValidator(playerId, gameState.genesisHash);
+}
 
 
 function startCountdown() {

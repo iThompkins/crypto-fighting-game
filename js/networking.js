@@ -147,27 +147,39 @@ function sendGameMove(moveData) {
 }
 
 function handleGameData(data) {
-    if (!data.keys || !data.position || !data.velocity) return;
+    // Validate move chain
+    const validation = gameState.moveValidator.validateMoveChain(data.moveChain);
     
-    // Update the opponent's state based on received data
+    if (!validation.valid) {
+        alert(`Invalid game state detected: ${validation.reason}`);
+        // TODO: Submit bad game state to contract
+        return;
+    }
+
+    // Add valid move to our chain
+    gameState.moveValidator.addMove(validation.newMove);
+    
+    // Update opponent state based on the new move
     const opponentPlayer = isHost ? player2 : player;
-    
-    // Update position and velocity directly
-    opponentPlayer.position = data.position;
-    opponentPlayer.velocity = data.velocity;
+    const keys = validation.newMove.keyCode;
     
     // Update visual state based on received keys
-    const keys = data.keys;
     if (keys.includes('a') || keys.includes('ArrowLeft')) {
         opponentPlayer.switchSprite('run');
+        opponentPlayer.velocity.x = -5;
     } else if (keys.includes('d') || keys.includes('ArrowRight')) {
         opponentPlayer.switchSprite('run');
+        opponentPlayer.velocity.x = 5;
     } else {
         opponentPlayer.switchSprite('idle');
+        opponentPlayer.velocity.x = 0;
     }
 
     if ((keys.includes('w') || keys.includes('ArrowUp'))) {
-        opponentPlayer.switchSprite('jump');
+        if (opponentPlayer.velocity.y === 0) {
+            opponentPlayer.velocity.y = -20;
+            opponentPlayer.switchSprite('jump');
+        }
     } else if (opponentPlayer.velocity.y > 0) {
         opponentPlayer.switchSprite('fall');
     }
