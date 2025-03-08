@@ -168,6 +168,9 @@ function updatePlayerState(keys) {
   const controlledPlayer = isHost ? player : player2;
   const otherPlayer = isHost ? player2 : player;
   
+  // Store current sprite for network sync
+  controlledPlayer.currentSprite = controlledPlayer.currentSprite || 'idle';
+  
   // Reset velocity
   controlledPlayer.velocity.x = 0;
   
@@ -175,24 +178,30 @@ function updatePlayerState(keys) {
   if (keys.includes('a') || keys.includes('ArrowLeft')) {
     controlledPlayer.velocity.x = -5;
     controlledPlayer.switchSprite('run');
+    controlledPlayer.currentSprite = 'run';
   } else if (keys.includes('d') || keys.includes('ArrowRight')) {
     controlledPlayer.velocity.x = 5;
     controlledPlayer.switchSprite('run');
+    controlledPlayer.currentSprite = 'run';
   } else {
     controlledPlayer.switchSprite('idle');
+    controlledPlayer.currentSprite = 'idle';
   }
 
   // Jumping (both W and Up arrow)
   if ((keys.includes('w') || keys.includes('ArrowUp')) && controlledPlayer.velocity.y === 0) {
     controlledPlayer.velocity.y = -20;
     controlledPlayer.switchSprite('jump');
+    controlledPlayer.currentSprite = 'jump';
   } else if (controlledPlayer.velocity.y > 0) {
     controlledPlayer.switchSprite('fall');
+    controlledPlayer.currentSprite = 'fall';
   }
 
   // Attacking (both spacebar and Down arrow)
-  if (keys.includes(' ') || keys.includes('ArrowDown')) {
+  if ((keys.includes(' ') || keys.includes('ArrowDown')) && !controlledPlayer.isAttacking) {
     controlledPlayer.attack();
+    controlledPlayer.currentSprite = 'attack1';
   }
 
   // Update position based on velocity
@@ -207,41 +216,43 @@ function updatePlayerState(keys) {
     controlledPlayer.velocity.y += gravity;
   }
 
-  // Collision detection
-  if (rectangularCollision({rectangle1: player, rectangle2: player2}) &&
+  // Collision detection - only check if we control the attacking player
+  if (isHost && rectangularCollision({rectangle1: player, rectangle2: player2}) &&
       player.isAttacking && player.framesCurrent === 4 && !player2.dead) {
-    player2.takeHit()
-    player.isAttacking = false
-    gsap.to('#player2Health', {width: player2.health + '%'})
+    player2.takeHit();
+    player.isAttacking = false;
+    gsap.to('#player2Health', {width: player2.health + '%'});
   }
 
-  if (rectangularCollision({rectangle1: player2, rectangle2: player}) &&
+  if (!isHost && rectangularCollision({rectangle1: player2, rectangle2: player}) &&
       player2.isAttacking && player2.framesCurrent === 2 && !player.dead) {
-    player.takeHit()
-    player2.isAttacking = false
-    gsap.to('#playerHealth', {width: player.health + '%'})
+    player.takeHit();
+    player2.isAttacking = false;
+    gsap.to('#playerHealth', {width: player.health + '%'});
   }
 
   // Reset attack states
   if (player.isAttacking && player.framesCurrent === 4) {
-    player.isAttacking = false
+    player.isAttacking = false;
   }
   if (player2.isAttacking && player2.framesCurrent === 2) {
-    player2.isAttacking = false
+    player2.isAttacking = false;
   }
 
   // Check win condition and handle death
   if (player.health <= 0 && !player.dead) {
-    player.switchSprite('death')
+    player.switchSprite('death');
+    player.currentSprite = 'death';
     // Only determine winner after death animation completes
     if (player.framesCurrent === player.sprites.death.framesMax - 1) {
-      determineWinner({ player, player2, timerId })
+      determineWinner({ player, player2, timerId });
     }
   } else if (player2.health <= 0 && !player2.dead) {
-    player2.switchSprite('death')
+    player2.switchSprite('death');
+    player2.currentSprite = 'death';
     // Only determine winner after death animation completes
     if (player2.framesCurrent === player2.sprites.death.framesMax - 1) {
-      determineWinner({ player, player2, timerId })
+      determineWinner({ player, player2, timerId });
     }
   }
 }
@@ -261,7 +272,16 @@ function animate() {
 
   // Update game state if both players are connected and game has started
   if (gameState.player1Connected && gameState.player2Connected && gameState.gameStarted) {
-    updatePlayerState(Array.from(currentKeys))
+    // Only update the player we control
+    const controlledPlayer = isHost ? player : player2;
+    
+    // In free play mode, we only update our own player
+    if (gameMode === 'freeplay') {
+      updatePlayerState(Array.from(currentKeys));
+    } else {
+      // In wallet mode, we update both players
+      updatePlayerState(Array.from(currentKeys));
+    }
   }
 
   // Draw players
@@ -325,14 +345,30 @@ document.addEventListener('keyup', (event) => {
 
 // Update local state and send moves to peer
 setInterval(() => {
-  if (gameState.gameStarted) {
-    // Send current state to peer
-    const currentState = {
-      keys: Array.from(currentKeys),
-      position: isHost ? player.position : player2.position,
-      velocity: isHost ? player.velocity : player2.velocity,
-      isAttacking: isHost ? player.isAttacking : player2.isAttacking
-    };
-    sendGameMove(currentState);
+  if (gameState.gameStarted && conn && conn.open) {
+    const controlledPlayer = isHost ? player : player2;
+    
+    // Different data format based on game mode
+    if (gameMode === 'wallet') {
+      // Wallet mode uses move validation
+      const currentState = {
+        keys: Array.from(currentKeys),
+        position: controlledPlayer.position,
+        velocity: controlledPlayer.velocity,
+        isAttacking: controlledPlayer.isAttacking
+      };
+      sendGameMove(currentState);
+    } else {
+      // Free play mode - send complete state
+      const currentState = {
+        position: controlledPlayer.position,
+        velocity: controlledPlayer.velocity,
+        health: controlledPlayer.health,
+        isAttacking: controlledPlayer.isAttacking,
+        spriteState: controlledPlayer.currentSprite || 'idle',
+        dead: controlledPlayer.dead
+      };
+      sendGameMove(currentState);
+    }
   }
-}, 1000 / 60);  // 60fps update rate for smoother animation
+}, 1000 / 30);  // 30fps update rate for network efficiency

@@ -70,13 +70,16 @@ function initializePeer(wallet = null) {
                 <p>Connected with wallet: ${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}</p>
                 <p>Your game ID: <span style="background: rgba(255,255,255,0.1); padding: 5px; border-radius: 4px;">${id}</span></p>
             `;
+            
+            // Initialize move validator for wallet mode
+            initMoveValidator(wallet.address);
         } else {
             document.getElementById('peer-id-display').innerHTML = `
                 <p>Your game ID: <span style="background: rgba(255,255,255,0.1); padding: 5px; border-radius: 4px;">${id}</span></p>
             `;
         }
         
-        // Start rendering the game immediately after wallet connection
+        // Start rendering the game immediately after connection
         gameState.player1Connected = true;
         player.show();
     });
@@ -142,8 +145,12 @@ function handleConnection() {
         if (data.type === 'playerAssignment') {
             // Start countdown for player 2
             startCountdown();
+        } else if (gameMode === 'wallet') {
+            // Wallet mode uses move validation
+            handleWalletGameData(data);
         } else {
-            handleGameData(data);
+            // Free play mode - simple data passing
+            handleFreePlayData(data);
         }
     });
 }
@@ -154,7 +161,47 @@ function sendGameMove(moveData) {
     }
 }
 
-function handleGameData(data) {
+// Handle data for free play mode
+function handleFreePlayData(data) {
+    // In free play, we directly update the opponent's state
+    const opponentPlayer = isHost ? player2 : player;
+    
+    // Update position if provided
+    if (data.position) {
+        opponentPlayer.position.x = data.position.x;
+        opponentPlayer.position.y = data.position.y;
+    }
+    
+    // Update velocity
+    if (data.velocity) {
+        opponentPlayer.velocity.x = data.velocity.x;
+        opponentPlayer.velocity.y = data.velocity.y;
+    }
+    
+    // Update sprite state
+    if (data.spriteState) {
+        opponentPlayer.switchSprite(data.spriteState);
+    }
+    
+    // Handle attacking
+    if (data.isAttacking && !opponentPlayer.isAttacking) {
+        opponentPlayer.attack();
+    }
+    
+    // Handle health updates
+    if (data.health !== undefined && data.health !== opponentPlayer.health) {
+        opponentPlayer.health = data.health;
+        const healthBar = isHost ? '#player2Health' : '#playerHealth';
+        gsap.to(healthBar, {width: opponentPlayer.health + '%'});
+        
+        if (data.health <= 0 && !opponentPlayer.dead) {
+            opponentPlayer.switchSprite('death');
+        }
+    }
+}
+
+// Handle data for wallet mode with move validation
+function handleWalletGameData(data) {
     // Validate move chain
     const validation = gameState.moveValidator.validateMoveChain(data.moveChain);
     

@@ -7,11 +7,14 @@ const gameState = {
   genesisHash: null // Will be set when game starts
 };
 
-// Initialize move validator
+// Initialize move validator (only used in wallet mode)
 function initMoveValidator(playerId) {
-  // In wallet mode, this would come from smart contract
-  gameState.genesisHash = 'genesis-' + Math.random().toString(36).substr(2);
-  gameState.moveValidator = new MoveValidator(playerId, gameState.genesisHash);
+  // Only initialize if in wallet mode
+  if (gameMode === 'wallet') {
+    // In wallet mode, this would come from smart contract
+    gameState.genesisHash = 'genesis-' + Math.random().toString(36).substr(2);
+    gameState.moveValidator = new MoveValidator(playerId, gameState.genesisHash);
+  }
 }
 
 
