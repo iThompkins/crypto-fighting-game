@@ -235,8 +235,10 @@ function handleConnection() {
             // Host is always player 1
             gameState.player1Connected = true;
             player.show();
+            player.facingLeft = false; // Ensure player 1 faces right
             gameState.player2Connected = true;
             player2.show();
+            player2.facingLeft = true; // Ensure player 2 faces left
             // Tell the other peer they're player 2
             conn.send({ type: 'playerAssignment', isPlayer2: true });
             // Host starts countdown
@@ -249,8 +251,10 @@ function handleConnection() {
             // Joiner is always player 2
             gameState.player1Connected = true;
             player.show();
+            player.facingLeft = false; // Ensure player 1 faces right
             gameState.player2Connected = true;
             player2.show();
+            player2.facingLeft = true; // Ensure player 2 faces left
             // Start ping/pong
             startPingPong();
             // Start connection status updates
