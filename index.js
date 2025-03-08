@@ -144,7 +144,8 @@ const player2 = new Fighter({
     },
     width: 170,
     height: 50
-  }
+  },
+  facingLeft: true
 })
 
 console.log(player)
@@ -179,12 +180,14 @@ function updatePlayerState(keys) {
     controlledPlayer.velocity.x = -5;
     controlledPlayer.switchSprite('run');
     controlledPlayer.currentSprite = 'run';
-    controlledPlayer.facingLeft = true;
+    // Player 1 faces left when moving left, Player 2 faces right when moving left
+    controlledPlayer.facingLeft = isHost ? true : false;
   } else if (keys.includes('d') || keys.includes('ArrowRight')) {
     controlledPlayer.velocity.x = 5;
     controlledPlayer.switchSprite('run');
     controlledPlayer.currentSprite = 'run';
-    controlledPlayer.facingLeft = false;
+    // Player 1 faces right when moving right, Player 2 faces left when moving right
+    controlledPlayer.facingLeft = isHost ? false : true;
   } else {
     controlledPlayer.switchSprite('idle');
     controlledPlayer.currentSprite = 'idle';

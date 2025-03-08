@@ -86,7 +86,8 @@ class Fighter extends Sprite {
     framesMax = 1,
     offset = { x: 0, y: 0 },
     sprites,
-    attackBox = { offset: {}, width: undefined, height: undefined }
+    attackBox = { offset: {}, width: undefined, height: undefined },
+    facingLeft = false
   }) {
     super({
       position,
@@ -118,7 +119,7 @@ class Fighter extends Sprite {
     this.sprites = sprites
     this.dead = false
     this.visible = false
-    this.facingLeft = false
+    this.facingLeft = facingLeft
     this.originalAttackBoxOffset = { ...attackBox.offset }
     
     for (const sprite in this.sprites) {
