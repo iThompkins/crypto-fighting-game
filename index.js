@@ -343,6 +343,88 @@ document.addEventListener('keyup', (event) => {
   }
 })
 
+// Keep track of connection health
+let lastPingTime = 0;
+let pingInterval;
+let connectionHealthy = true;
+let connectionStatusInterval;
+
+// Function to update connection status display
+function updateConnectionStatus() {
+    const statusElement = document.getElementById('connection-status');
+    if (!statusElement) return;
+    
+    if (!conn) {
+        statusElement.textContent = 'Not connected';
+        statusElement.style.color = '#aaa';
+        return;
+    }
+    
+    if (conn.open && connectionHealthy) {
+        statusElement.textContent = 'Connected';
+        statusElement.style.color = '#4caf50';
+    } else if (conn.open && !connectionHealthy) {
+        statusElement.textContent = 'Connection unstable';
+        statusElement.style.color = '#ff9800';
+    } else {
+        statusElement.textContent = 'Disconnected';
+        statusElement.style.color = '#f44336';
+    }
+}
+
+// Start connection status updates
+function startConnectionStatusUpdates() {
+    if (connectionStatusInterval) clearInterval(connectionStatusInterval);
+    
+    connectionStatusInterval = setInterval(() => {
+        updateConnectionStatus();
+    }, 1000);
+}
+
+// Function to start ping/pong for connection health
+function startPingPong() {
+    if (pingInterval) clearInterval(pingInterval);
+    
+    pingInterval = setInterval(() => {
+        if (conn && conn.open) {
+            // Send ping
+            lastPingTime = Date.now();
+            try {
+                conn.send({ type: 'ping', time: lastPingTime });
+            } catch (err) {
+                console.error('Error sending ping:', err);
+                connectionHealthy = false;
+            }
+            
+            // Check if we've received a pong within reasonable time
+            if (lastPingTime > 0 && Date.now() - lastPingTime > 10000) {
+                console.warn('No pong received for 10 seconds, connection may be unstable');
+                connectionHealthy = false;
+            }
+        }
+    }, 5000); // Ping every 5 seconds
+}
+
+// Handle ping/pong in the data handler
+function handlePingPong(data) {
+    if (data.type === 'ping') {
+        // Respond with pong
+        if (conn && conn.open) {
+            try {
+                conn.send({ type: 'pong', time: data.time });
+            } catch (err) {
+                console.error('Error sending pong:', err);
+            }
+        }
+    } else if (data.type === 'pong') {
+        // Received pong, connection is healthy
+        const latency = Date.now() - data.time;
+        console.log(`Connection latency: ${latency}ms`);
+        connectionHealthy = true;
+        lastPingTime = 0; // Reset ping time
+    }
+}
+
 // Update local state and send moves to peer
 setInterval(() => {
   if (gameState.gameStarted && conn && conn.open) {
