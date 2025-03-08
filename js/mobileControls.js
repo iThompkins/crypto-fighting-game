@@ -96,9 +96,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isPortrait) {
       // Portrait mode
       mobileControls.style.flexDirection = 'row';
-      mobileControls.style.bottom = '0';
+      mobileControls.style.bottom = 'auto';
+      mobileControls.style.top = '66%';
       mobileControls.style.left = '0';
       mobileControls.style.width = '100%';
+      mobileControls.style.transform = 'translateY(-50%)';
     } else {
       // Landscape mode
       mobileControls.style.flexDirection = 'row';
