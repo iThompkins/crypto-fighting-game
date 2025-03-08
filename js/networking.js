@@ -231,6 +231,9 @@ function handleConnection() {
         console.log('Connection established successfully');
         document.getElementById('auth-container').style.display = 'none';
         
+        // Force player2 to face left immediately
+        player2.facingLeft = true;
+        
         if (isHost) {
             // Host is always player 1
             gameState.player1Connected = true;

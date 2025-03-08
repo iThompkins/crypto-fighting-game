@@ -41,5 +41,10 @@ function startCountdown() {
 
 function startGame() {
   gameState.gameStarted = true;
+  
+  // Ensure player orientations are correct
+  player.facingLeft = false;
+  player2.facingLeft = true;
+  
   decreaseTimer();
 }
