@@ -222,6 +222,12 @@ function updatePlayerState(keys) {
     player2.takeHit();
     player.isAttacking = false;
     gsap.to('#player2Health', {width: player2.health + '%'});
+    
+    // Check for game over
+    if (player2.health <= 0) {
+      player2.dead = true;
+      determineWinner({ player, player2, timerId });
+    }
   }
 
   if (!isHost && rectangularCollision({rectangle1: player2, rectangle2: player}) &&
@@ -229,6 +235,12 @@ function updatePlayerState(keys) {
     player.takeHit();
     player2.isAttacking = false;
     gsap.to('#playerHealth', {width: player.health + '%'});
+    
+    // Check for game over
+    if (player.health <= 0) {
+      player.dead = true;
+      determineWinner({ player, player2, timerId });
+    }
   }
 
   // Reset attack states
@@ -243,17 +255,13 @@ function updatePlayerState(keys) {
   if (player.health <= 0 && !player.dead) {
     player.switchSprite('death');
     player.currentSprite = 'death';
-    // Only determine winner after death animation completes
-    if (player.framesCurrent === player.sprites.death.framesMax - 1) {
-      determineWinner({ player, player2, timerId });
-    }
+    player.dead = true;
+    determineWinner({ player, player2, timerId });
   } else if (player2.health <= 0 && !player2.dead) {
     player2.switchSprite('death');
     player2.currentSprite = 'death';
-    // Only determine winner after death animation completes
-    if (player2.framesCurrent === player2.sprites.death.framesMax - 1) {
-      determineWinner({ player, player2, timerId });
-    }
+    player2.dead = true;
+    determineWinner({ player, player2, timerId });
   }
 }
 
@@ -270,8 +278,8 @@ function animate() {
   c.fillStyle = 'rgba(255, 255, 255, 0.15)'
   c.fillRect(0, 0, canvas.width, canvas.height)
 
-  // Update game state if both players are connected and game has started
-  if (gameState.player1Connected && gameState.player2Connected && gameState.gameStarted) {
+  // Update game state if both players are connected and game has started but not ended
+  if (gameState.player1Connected && gameState.player2Connected && gameState.gameStarted && !gameState.gameEnded) {
     // Only update the player we control
     const controlledPlayer = isHost ? player : player2;
     

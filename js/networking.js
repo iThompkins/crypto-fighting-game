@@ -348,14 +348,15 @@ function handleFreePlayData(data) {
         opponentPlayer.attack();
     }
     
-    // Handle health updates
-    if (data.health !== undefined && data.health !== opponentPlayer.health) {
+    // Handle health updates - only allow health to decrease, never increase
+    if (data.health !== undefined && data.health < opponentPlayer.health) {
         opponentPlayer.health = data.health;
         const healthBar = isHost ? '#player2Health' : '#playerHealth';
         gsap.to(healthBar, {width: opponentPlayer.health + '%'});
         
         if (data.health <= 0 && !opponentPlayer.dead) {
             opponentPlayer.switchSprite('death');
+            opponentPlayer.dead = true;
         }
     }
 }

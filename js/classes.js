@@ -152,6 +152,9 @@ class Fighter extends Sprite {
     } else {
       this.switchSprite('takeHit')
     }
+    
+    // Ensure health doesn't go below 0
+    if (this.health < 0) this.health = 0;
   }
 
   switchSprite(sprite) {

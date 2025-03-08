@@ -2,6 +2,7 @@ const gameState = {
   player1Connected: false,
   player2Connected: false,
   gameStarted: false,
+  gameEnded: false,
   animationStarted: false,
   moveValidator: null,
   genesisHash: null // Will be set when game starts
