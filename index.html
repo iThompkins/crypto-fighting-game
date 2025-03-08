@@ -24,6 +24,25 @@
       overflow: hidden;
     }
     
+    /* Ensure proper rendering on mobile */
+    @media (max-width: 768px) {
+      #auth-container {
+        width: 90%;
+        max-width: 400px;
+      }
+      
+      #auth-container button {
+        margin: 10px 0;
+        width: 100%;
+      }
+      
+      #peer-id-input {
+        width: 100%;
+        box-sizing: border-box;
+        margin: 10px 0;
+      }
+    }
+    
     #game-container {
       position: relative;
       display: flex;
@@ -41,7 +60,7 @@
       left: 0;
       width: 100%;
       padding: 10px;
-      z-index: 100;
+      z-index: 50;
     }
     
     .d-pad {
@@ -181,9 +200,9 @@
       
       #auth-container {
         position: absolute;
-        top: 30% !important;
+        top: 25% !important;
         transform: translateY(-50%) translateX(-50%);
-        z-index: 100;
+        z-index: 1000;
       }
     }
     
@@ -231,7 +250,7 @@
 </head>
 <body>
   <div id="game-container">
-    <div id="auth-container" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; text-align: center;">
+    <div id="auth-container" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; text-align: center;">
     <div id="mode-select" style="margin-bottom: 20px;">
       <button onclick="selectMode('freeplay')" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px; margin: 5px;">
         Free Play
@@ -371,7 +390,7 @@
       align-items: center;
       justify-content: center;
       background: rgba(0, 0, 0, 0.7);
-      z-index: 50;
+      z-index: 500;
     ">
       <div id="countdown-text" style="
         color: white;

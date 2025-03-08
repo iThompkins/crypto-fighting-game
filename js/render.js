@@ -50,7 +50,26 @@ function adjustCanvasForMobile() {
   }
 }
 
-// Call this function on window resize
-window.addEventListener('resize', adjustCanvasForMobile);
-// Initial call
-window.addEventListener('DOMContentLoaded', adjustCanvasForMobile);
+// Adjust auth container position for mobile
+function adjustAuthContainer() {
+  const authContainer = document.getElementById('auth-container');
+  const isPortrait = window.innerHeight > window.innerWidth;
+  
+  if (isPortrait && authContainer) {
+    // Ensure auth container is in the top 25% of the screen on mobile
+    authContainer.style.top = '25%';
+    authContainer.style.transform = 'translateY(-50%) translateX(-50%)';
+  }
+}
+
+// Call these functions on window resize
+window.addEventListener('resize', () => {
+  adjustCanvasForMobile();
+  adjustAuthContainer();
+});
+
+// Initial calls
+window.addEventListener('DOMContentLoaded', () => {
+  adjustCanvasForMobile();
+  adjustAuthContainer();
+});
