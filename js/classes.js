@@ -26,6 +26,23 @@ class Sprite {
 
   draw() {
     if (!this.visible || !this.loaded) return;
+    
+    // Save the current context state
+    c.save();
+    
+    if (this instanceof Fighter && this.facingLeft) {
+      // Flip horizontally if facing left
+      c.translate(
+        this.position.x + (this.image.width / this.framesMax) * this.scale / 2, 
+        0
+      );
+      c.scale(-1, 1);
+      c.translate(
+        -(this.position.x + (this.image.width / this.framesMax) * this.scale / 2), 
+        0
+      );
+    }
+    
     c.drawImage(
       this.image,
       this.framesCurrent * (this.image.width / this.framesMax),
@@ -37,6 +54,9 @@ class Sprite {
       (this.image.width / this.framesMax) * this.scale,
       this.image.height * this.scale
     )
+    
+    // Restore the context state
+    c.restore();
   }
 
   animateFrames() {
@@ -100,6 +120,8 @@ class Fighter extends Sprite {
     this.sprites = sprites
     this.dead = false
     this.visible = false
+    this.facingLeft = false
+    this.originalAttackBoxOffset = { ...attackBox.offset }
     
     for (const sprite in this.sprites) {
       sprites[sprite].image = new Image()
@@ -113,11 +135,21 @@ class Fighter extends Sprite {
       this.animateFrames()
     }
 
+    // Update attack box position based on facing direction
+    if (this.facingLeft) {
+      // When facing left, flip the attack box offset
+      this.attackBox.offset.x = -this.originalAttackBoxOffset.x - this.attackBox.width
+    } else {
+      // When facing right, use the original offset
+      this.attackBox.offset.x = this.originalAttackBoxOffset.x
+    }
+
     // attack boxes
     this.attackBox.position.x = this.position.x + this.attackBox.offset.x
     this.attackBox.position.y = this.position.y + this.attackBox.offset.y
 
-    // draw the attack box
+    // Uncomment to debug attack boxes
+    // c.fillStyle = 'rgba(255, 0, 0, 0.5)'
     // c.fillRect(
     //   this.attackBox.position.x,
     //   this.attackBox.position.y,

@@ -338,6 +338,11 @@ function handleFreePlayData(data) {
         opponentPlayer.velocity.y = data.velocity.y;
     }
     
+    // Update facing direction
+    if (data.facingLeft !== undefined) {
+        opponentPlayer.facingLeft = data.facingLeft;
+    }
+    
     // Update sprite state
     if (data.spriteState) {
         opponentPlayer.switchSprite(data.spriteState);

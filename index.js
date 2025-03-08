@@ -179,10 +179,12 @@ function updatePlayerState(keys) {
     controlledPlayer.velocity.x = -5;
     controlledPlayer.switchSprite('run');
     controlledPlayer.currentSprite = 'run';
+    controlledPlayer.facingLeft = true;
   } else if (keys.includes('d') || keys.includes('ArrowRight')) {
     controlledPlayer.velocity.x = 5;
     controlledPlayer.switchSprite('run');
     controlledPlayer.currentSprite = 'run';
+    controlledPlayer.facingLeft = false;
   } else {
     controlledPlayer.switchSprite('idle');
     controlledPlayer.currentSprite = 'idle';
@@ -456,7 +458,8 @@ setInterval(() => {
         health: controlledPlayer.health,
         isAttacking: controlledPlayer.isAttacking,
         spriteState: controlledPlayer.currentSprite || 'idle',
-        dead: controlledPlayer.dead
+        dead: controlledPlayer.dead,
+        facingLeft: controlledPlayer.facingLeft
       };
       sendGameMove(currentState);
     }
