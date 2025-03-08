@@ -45,6 +45,7 @@ function startGame() {
   // Ensure player orientations are correct
   player.facingLeft = false;
   player2.facingLeft = true;
+  player2.switchSprite('idle'); // Force sprite update with correct orientation
   
   decreaseTimer();
 }

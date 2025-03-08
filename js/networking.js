@@ -243,6 +243,7 @@ function handleConnection() {
             gameState.player2Connected = true;
             player2.show();
             player2.facingLeft = true; // Ensure player 2 faces left
+            player2.switchSprite('idle'); // Force sprite update with correct orientation
             // Tell the other peer they're player 2
             conn.send({ type: 'playerAssignment', isPlayer2: true });
             // Host starts countdown
@@ -259,6 +260,7 @@ function handleConnection() {
             gameState.player2Connected = true;
             player2.show();
             player2.facingLeft = true; // Ensure player 2 faces left
+            player2.switchSprite('idle'); // Force sprite update with correct orientation
             // Start ping/pong
             startPingPong();
             // Start connection status updates
