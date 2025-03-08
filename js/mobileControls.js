@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
       mobileControls.style.width = '100%';
       mobileControls.style.transform = 'translateY(-50%)';
       mobileControls.style.justifyContent = 'space-between';
-      mobileControls.style.padding = '0 10%';
+      mobileControls.style.padding = '0 5%';
     } else {
       // Landscape mode
       mobileControls.style.flexDirection = 'row';
