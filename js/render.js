@@ -6,17 +6,26 @@ function adjustCanvasForMobile() {
   const isPortrait = window.innerHeight > window.innerWidth;
   
   if (isPortrait) {
-    // In portrait mode, make canvas fit width
+    // In portrait mode, make canvas fit width but larger
     const aspectRatio = canvas.height / canvas.width;
     const newWidth = window.innerWidth;
     const newHeight = newWidth * aspectRatio;
     
+    // Make canvas bigger but maintain aspect ratio
     canvas.style.width = `${newWidth}px`;
     canvas.style.height = `${newHeight}px`;
+    
+    // Ensure it's not too big for the viewport
+    if (newHeight > window.innerHeight * 0.6) {
+      const adjustedHeight = window.innerHeight * 0.6;
+      const adjustedWidth = adjustedHeight / aspectRatio;
+      canvas.style.width = `${adjustedWidth}px`;
+      canvas.style.height = `${adjustedHeight}px`;
+    }
   } else {
-    // In landscape, try to fit the screen while maintaining aspect ratio
+    // In landscape, center in the screen while maintaining aspect ratio
     const aspectRatio = canvas.height / canvas.width;
-    const maxWidth = window.innerWidth;
+    const maxWidth = window.innerWidth * 0.9; // Use 90% of screen width
     const maxHeight = window.innerHeight * 0.7; // Leave room for controls
     
     let newWidth = maxWidth;
@@ -30,6 +39,14 @@ function adjustCanvasForMobile() {
     
     canvas.style.width = `${newWidth}px`;
     canvas.style.height = `${newHeight}px`;
+    
+    // Center the canvas
+    const container = document.querySelector('#game-container');
+    if (container) {
+      container.style.display = 'flex';
+      container.style.justifyContent = 'center';
+      container.style.alignItems = 'center';
+    }
   }
 }
 

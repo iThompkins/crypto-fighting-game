@@ -16,6 +16,14 @@ function selectMode(mode) {
   }
 }
 
+function showWalletTooltip(element) {
+  const tooltip = element.querySelector('.tooltip');
+  tooltip.style.visibility = 'visible';
+  setTimeout(() => {
+    tooltip.style.visibility = 'hidden';
+  }, 3000);
+}
+
 // Initialize networking when the game loads
 window.addEventListener('load', () => {
   // Show mode selection by default
