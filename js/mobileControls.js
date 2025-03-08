@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Portrait mode
       mobileControls.style.flexDirection = 'row';
       mobileControls.style.bottom = 'auto';
-      mobileControls.style.top = '66%';
+      mobileControls.style.top = '75%';
       mobileControls.style.left = '0';
       mobileControls.style.width = '100%';
       mobileControls.style.transform = 'translateY(-50%)';
