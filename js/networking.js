@@ -233,6 +233,7 @@ function handleConnection() {
         
         // Force player2 to face left immediately
         player2.facingLeft = true;
+        player2.switchSprite('idle'); // Ensure correct sprite is loaded with facing direction
         
         if (isHost) {
             // Host is always player 1
