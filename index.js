@@ -88,7 +88,7 @@ const player = new Fighter({
 
 const player2 = new Fighter({
   position: {
-    x: 400,
+    x: 800,
     y: 100
   },
   velocity: {
@@ -181,13 +181,13 @@ function updatePlayerState(keys) {
     controlledPlayer.switchSprite('run');
     controlledPlayer.currentSprite = 'run';
     // Player 1 faces left when moving left, Player 2 faces right when moving left
-    controlledPlayer.facingLeft = isHost ? true : false;
+    controlledPlayer.facingLeft = isHost;
   } else if (keys.includes('d') || keys.includes('ArrowRight')) {
     controlledPlayer.velocity.x = 5;
     controlledPlayer.switchSprite('run');
     controlledPlayer.currentSprite = 'run';
     // Player 1 faces right when moving right, Player 2 faces left when moving right
-    controlledPlayer.facingLeft = isHost ? false : true;
+    controlledPlayer.facingLeft = !isHost;
   } else {
     controlledPlayer.switchSprite('idle');
     controlledPlayer.currentSprite = 'idle';
