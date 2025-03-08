@@ -1,4 +1,5 @@
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -11,10 +12,157 @@
       box-sizing: border-box;
       font-family: 'Press Start 2P', cursive;
     }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      background-color: #000;
+      overflow: hidden;
+    }
+    
+    #game-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 1024px;
+    }
+    
+    /* Mobile controls */
+    #mobile-controls {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      padding: 10px;
+      z-index: 100;
+    }
+    
+    .d-pad {
+      position: relative;
+      width: 150px;
+      height: 150px;
+    }
+    
+    .d-pad-button {
+      position: absolute;
+      background-color: rgba(255, 255, 255, 0.3);
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: white;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    .d-pad-up, .d-pad-down {
+      width: 50px;
+      height: 50px;
+      left: 50px;
+    }
+    
+    .d-pad-left, .d-pad-right {
+      width: 50px;
+      height: 50px;
+      top: 50px;
+    }
+    
+    .d-pad-up {
+      top: 0;
+    }
+    
+    .d-pad-right {
+      right: 0;
+    }
+    
+    .d-pad-down {
+      bottom: 0;
+    }
+    
+    .d-pad-left {
+      left: 0;
+    }
+    
+    .d-pad-center {
+      width: 50px;
+      height: 50px;
+      top: 50px;
+      left: 50px;
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .attack-button {
+      width: 80px;
+      height: 80px;
+      background-color: rgba(255, 0, 0, 0.3);
+      border: 2px solid rgba(255, 0, 0, 0.6);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 16px;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Portrait mode */
+    @media (orientation: portrait) {
+      #mobile-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 180px;
+      }
+      
+      canvas {
+        width: 100% !important;
+        height: auto !important;
+      }
+    }
+    
+    /* Landscape mode */
+    @media (orientation: landscape) and (max-width: 1024px) {
+      #mobile-controls {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        padding: 20px;
+      }
+      
+      .d-pad {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+      }
+      
+      .attack-button {
+        position: fixed;
+        bottom: 50px;
+        right: 30px;
+      }
+    }
+    
+    /* Hide mobile controls on desktop */
+    @media (min-width: 1025px) {
+      #mobile-controls {
+        display: none !important;
+      }
+    }
   </style>
 </head>
 <body>
-  <div id="auth-container" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; text-align: center;">
+  <div id="game-container">
+    <div id="auth-container" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; text-align: center;">
     <div id="mode-select" style="margin-bottom: 20px;">
       <button onclick="selectMode('freeplay')" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px; margin: 5px;">
         Free Play
@@ -48,7 +196,7 @@
     </style>
   </div>
   <!-- red container div -->
-  <div style="position: relative; display: inline-block">
+  <div style="position: relative; display: inline-block; margin: 0 auto;">
     <!-- smaller red container div -->
     <div
       style="
@@ -163,6 +311,20 @@
     </div>
     <canvas></canvas>
   </div>
+  
+  <!-- Mobile controls -->
+  <div id="mobile-controls">
+    <div class="d-pad">
+      <div class="d-pad-button d-pad-up" id="dpad-up">↑</div>
+      <div class="d-pad-button d-pad-right" id="dpad-right">→</div>
+      <div class="d-pad-button d-pad-down" id="dpad-down">↓</div>
+      <div class="d-pad-button d-pad-left" id="dpad-left">←</div>
+      <div class="d-pad-button d-pad-center"></div>
+    </div>
+    <div class="attack-button" id="attack-button">ATTACK</div>
+  </div>
+  </div> <!-- Close game-container -->
+  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"
     integrity="sha512-H6cPm97FAsgIKmlBA4s774vqoN24V5gSQL4yBTDOY2su2DeXZVhQPxFK4P6GPdnZqM9fg1G3cMv5wD7e6cFLZQ=="
     crossorigin="anonymous"
@@ -175,5 +337,6 @@
   <script src="js/gameState.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/classes.js"></script>
+  <script src="js/mobileControls.js"></script>
   <script src="index.js"></script>
 </body>

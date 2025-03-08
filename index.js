@@ -277,7 +277,7 @@ animate()
 
 let currentKeys = new Set();
 
-window.addEventListener('keydown', (event) => {
+document.addEventListener('keydown', (event) => {
   currentKeys.add(event.key);
   const controlledPlayer = isHost ? player : player2;
   
@@ -301,7 +301,7 @@ window.addEventListener('keydown', (event) => {
   }
 })
 
-window.addEventListener('keyup', (event) => {
+document.addEventListener('keyup', (event) => {
   currentKeys.delete(event.key);
   switch (event.key) {
     case 'd':
