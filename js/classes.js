@@ -31,16 +31,14 @@ class Sprite {
     c.save();
     
     if (this instanceof Fighter && this.facingLeft) {
-      // Flip horizontally if facing left
-      c.translate(
-        this.position.x + (this.image.width / this.framesMax) * this.scale / 2, 
-        0
-      );
+      // Flip horizontally if facing left without changing position
+      // Translate to the center of the sprite
+      const spriteWidth = (this.image.width / this.framesMax) * this.scale;
+      c.translate(this.position.x - this.offset.x + spriteWidth / 2, 0);
+      // Flip
       c.scale(-1, 1);
-      c.translate(
-        -(this.position.x + (this.image.width / this.framesMax) * this.scale / 2), 
-        0
-      );
+      // Translate back, but with the x-coordinate negated
+      c.translate(-(this.position.x - this.offset.x + spriteWidth / 2), 0);
     }
     
     c.drawImage(
