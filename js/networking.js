@@ -231,19 +231,17 @@ function handleConnection() {
         console.log('Connection established successfully');
         document.getElementById('auth-container').style.display = 'none';
         
-        // Force player2 to face left immediately
-        player2.facingLeft = true;
-        player2.switchSprite('idle'); // Ensure correct sprite is loaded with facing direction
+        // Player 2 is already facing left by default
         
         if (isHost) {
             // Host is always player 1
             gameState.player1Connected = true;
             player.show();
             player.facingLeft = false; // Ensure player 1 faces right
+            player.switchSprite('idle');
             gameState.player2Connected = true;
             player2.show();
-            player2.facingLeft = true; // Ensure player 2 faces left
-            player2.switchSprite('idle'); // Force sprite update with correct orientation
+            // Player 2 is already facing left by default
             // Tell the other peer they're player 2
             conn.send({ type: 'playerAssignment', isPlayer2: true });
             // Host starts countdown
@@ -257,10 +255,10 @@ function handleConnection() {
             gameState.player1Connected = true;
             player.show();
             player.facingLeft = false; // Ensure player 1 faces right
+            player.switchSprite('idle');
             gameState.player2Connected = true;
             player2.show();
-            player2.facingLeft = true; // Ensure player 2 faces left
-            player2.switchSprite('idle'); // Force sprite update with correct orientation
+            // Player 2 is already facing left by default
             // Start ping/pong
             startPingPong();
             // Start connection status updates

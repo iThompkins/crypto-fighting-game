@@ -145,7 +145,7 @@ const player2 = new Fighter({
     width: 170,
     height: 50
   },
-  facingLeft: false // Start facing right initially, will be flipped in handleConnection
+  facingLeft: true // Player 2 should face left by default
 })
 
 console.log(player)
