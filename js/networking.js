@@ -307,10 +307,20 @@ function handleConnection() {
     });
 }
 
-function sendGameMove(moveData) {
+function sendGameMove(keys) {
     if (conn && conn.open) {
         try {
-            conn.send(moveData);
+            // Add move to our local history
+            const move = gameState.moveSync.addMove(keys);
+            
+            // Send all moves since the last acknowledged sequence
+            const movesToSend = gameState.moveSync.getMovesSince(gameState.lastAcknowledgedSequence);
+            
+            conn.send({
+                type: 'gameMoves',
+                moves: movesToSend,
+                ackSequence: gameState.opponentLastSequence // Acknowledge opponent's last sequence
+            });
         } catch (err) {
             console.error('Error sending game move:', err);
             // If we get an error sending data, check connection
@@ -331,7 +341,32 @@ function sendGameMove(moveData) {
 
 // Handle data for free play mode
 function handleFreePlayData(data) {
-    // In free play, we directly update the opponent's state
+    // Check if this is a game moves packet
+    if (data.type === 'gameMoves' && data.moves) {
+        // Process the received moves
+        const result = gameState.moveSync.processMoves(data.moves);
+        
+        if (result.valid) {
+            // Update our record of opponent's last sequence
+            if (data.moves.length > 0) {
+                const lastMove = data.moves[data.moves.length - 1];
+                gameState.opponentLastSequence = lastMove.sequence;
+            }
+            
+            // Update our last acknowledged sequence
+            if (data.ackSequence) {
+                gameState.lastAcknowledgedSequence = data.ackSequence;
+            }
+            
+            // Apply new moves to opponent
+            applyMovesToOpponent(result.newMoves);
+        } else {
+            console.error('Invalid moves received:', result.reason);
+        }
+        return;
+    }
+    
+    // Legacy direct state update (fallback)
     const opponentPlayer = isHost ? player2 : player;
     
     // Update position if provided
@@ -372,6 +407,45 @@ function handleFreePlayData(data) {
             opponentPlayer.dead = true;
         }
     }
+}
+
+// Apply a sequence of moves to the opponent
+function applyMovesToOpponent(moves) {
+    if (!moves || moves.length === 0) return;
+    
+    const opponentPlayer = isHost ? player2 : player;
+    
+    // Apply each move in sequence
+    moves.forEach(move => {
+        const keys = move.keys;
+        
+        // Reset velocity
+        opponentPlayer.velocity.x = 0;
+        
+        // Movement
+        if (keys.includes('a') || keys.includes('ArrowLeft')) {
+            opponentPlayer.velocity.x = -5;
+            opponentPlayer.switchSprite('run');
+            opponentPlayer.facingLeft = !isHost; // Player 2 faces left when moving left
+        } else if (keys.includes('d') || keys.includes('ArrowRight')) {
+            opponentPlayer.velocity.x = 5;
+            opponentPlayer.switchSprite('run');
+            opponentPlayer.facingLeft = isHost; // Player 2 faces right when moving right
+        } else {
+            opponentPlayer.switchSprite('idle');
+        }
+        
+        // Jumping
+        if ((keys.includes('w') || keys.includes('ArrowUp')) && opponentPlayer.velocity.y === 0) {
+            opponentPlayer.velocity.y = -20;
+            opponentPlayer.switchSprite('jump');
+        }
+        
+        // Attacking
+        if ((keys.includes(' ') || keys.includes('ArrowDown')) && !opponentPlayer.isAttacking) {
+            opponentPlayer.attack();
+        }
+    });
 }
 
 // Handle data for wallet mode with move validation

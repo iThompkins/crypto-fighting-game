@@ -439,32 +439,27 @@ function handlePingPong(data) {
 }
 
 // Update local state and send moves to peer
-setInterval(() => {
-  if (gameState.gameStarted && conn && conn.open) {
-    const controlledPlayer = isHost ? player : player2;
-    
-    // Different data format based on game mode
-    if (gameMode === 'wallet') {
-      // Wallet mode uses move validation
-      const currentState = {
-        keys: Array.from(currentKeys),
-        position: controlledPlayer.position,
-        velocity: controlledPlayer.velocity,
-        isAttacking: controlledPlayer.isAttacking
-      };
-      sendGameMove(currentState);
-    } else {
-      // Free play mode - send complete state
-      const currentState = {
-        position: controlledPlayer.position,
-        velocity: controlledPlayer.velocity,
-        health: controlledPlayer.health,
-        isAttacking: controlledPlayer.isAttacking,
-        spriteState: controlledPlayer.currentSprite || 'idle',
-        dead: controlledPlayer.dead,
-        facingLeft: controlledPlayer.facingLeft
-      };
-      sendGameMove(currentState);
-    }
+let lastSendTime = 0;
+function sendPlayerState() {
+  if (!gameState.gameStarted || !conn || !conn.open) return;
+  
+  const now = Date.now();
+  const minTimeBetweenSends = 1000 / gameState.moveSync.getCurrentFps();
+  
+  // Throttle sending based on adjusted FPS
+  if (now - lastSendTime < minTimeBetweenSends) return;
+  
+  lastSendTime = now;
+  sendGameMove(currentKeys);
+}
+
+// Call sendPlayerState on each animation frame
+function updateNetworkState() {
+  if (gameState.gameStarted && !gameState.gameEnded) {
+    sendPlayerState();
   }
-}, 1000 / 30);  // 30fps update rate for network efficiency
+  requestAnimationFrame(updateNetworkState);
+}
+
+// Start network state updates
+updateNetworkState();
