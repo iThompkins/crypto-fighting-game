@@ -7,8 +7,6 @@ const gameState = {
   moveValidator: null,
   genesisHash: null, // Will be set when game starts
   moveSync: new MoveSync(30), // Initialize with 30fps target
-  lastAcknowledgedSequence: 0, // Last sequence acknowledged by opponent
-  opponentLastSequence: 0, // Last sequence received from opponent
   lastMoveTime: 0 // Time of last move sent
 };
 

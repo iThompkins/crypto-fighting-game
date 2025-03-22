@@ -313,13 +313,12 @@ function sendGameMove(keys) {
             // Add move to our local history
             const move = gameState.moveSync.addMove(keys);
             
-            // Send all moves since the last acknowledged sequence
-            const movesToSend = gameState.moveSync.getMovesSince(gameState.lastAcknowledgedSequence);
+            // Send the entire move history
+            const moveHistory = gameState.moveSync.getMoveHistory();
             
             conn.send({
                 type: 'gameMoves',
-                moves: movesToSend,
-                ackSequence: gameState.opponentLastSequence // Acknowledge opponent's last sequence
+                moveHistory: moveHistory
             });
         } catch (err) {
             console.error('Error sending game move:', err);
@@ -342,26 +341,15 @@ function sendGameMove(keys) {
 // Handle data for free play mode
 function handleFreePlayData(data) {
     // Check if this is a game moves packet
-    if (data.type === 'gameMoves' && data.moves) {
-        // Process the received moves
-        const result = gameState.moveSync.processMoves(data.moves);
+    if (data.type === 'gameMoves' && data.moveHistory) {
+        // Process the received move history
+        const result = gameState.moveSync.processOpponentHistory(data.moveHistory);
         
         if (result.valid) {
-            // Update our record of opponent's last sequence
-            if (data.moves.length > 0) {
-                const lastMove = data.moves[data.moves.length - 1];
-                gameState.opponentLastSequence = lastMove.sequence;
-            }
-            
-            // Update our last acknowledged sequence
-            if (data.ackSequence) {
-                gameState.lastAcknowledgedSequence = data.ackSequence;
-            }
-            
-            // Apply new moves to opponent
-            applyMovesToOpponent(result.newMoves);
+            console.log(`Received ${result.newMoves.length} new moves from opponent`);
+            // Moves will be applied gradually in the animation loop
         } else {
-            console.error('Invalid moves received:', result.reason);
+            console.error('Invalid move history received:', result.reason);
         }
         return;
     }
@@ -409,43 +397,39 @@ function handleFreePlayData(data) {
     }
 }
 
-// Apply a sequence of moves to the opponent
-function applyMovesToOpponent(moves) {
-    if (!moves || moves.length === 0) return;
+// Apply a move to the opponent
+function applyMoveToOpponent(move) {
+    if (!move) return;
     
     const opponentPlayer = isHost ? player2 : player;
+    const keys = move.keys;
     
-    // Apply each move in sequence
-    moves.forEach(move => {
-        const keys = move.keys;
-        
-        // Reset velocity
-        opponentPlayer.velocity.x = 0;
-        
-        // Movement
-        if (keys.includes('a') || keys.includes('ArrowLeft')) {
-            opponentPlayer.velocity.x = -5;
-            opponentPlayer.switchSprite('run');
-            opponentPlayer.facingLeft = !isHost; // Player 2 faces left when moving left
-        } else if (keys.includes('d') || keys.includes('ArrowRight')) {
-            opponentPlayer.velocity.x = 5;
-            opponentPlayer.switchSprite('run');
-            opponentPlayer.facingLeft = isHost; // Player 2 faces right when moving right
-        } else {
-            opponentPlayer.switchSprite('idle');
-        }
-        
-        // Jumping
-        if ((keys.includes('w') || keys.includes('ArrowUp')) && opponentPlayer.velocity.y === 0) {
-            opponentPlayer.velocity.y = -20;
-            opponentPlayer.switchSprite('jump');
-        }
-        
-        // Attacking
-        if ((keys.includes(' ') || keys.includes('ArrowDown')) && !opponentPlayer.isAttacking) {
-            opponentPlayer.attack();
-        }
-    });
+    // Reset velocity
+    opponentPlayer.velocity.x = 0;
+    
+    // Movement
+    if (keys.includes('a') || keys.includes('ArrowLeft')) {
+        opponentPlayer.velocity.x = -5;
+        opponentPlayer.switchSprite('run');
+        opponentPlayer.facingLeft = !isHost; // Player 2 faces left when moving left
+    } else if (keys.includes('d') || keys.includes('ArrowRight')) {
+        opponentPlayer.velocity.x = 5;
+        opponentPlayer.switchSprite('run');
+        opponentPlayer.facingLeft = isHost; // Player 2 faces right when moving right
+    } else {
+        opponentPlayer.switchSprite('idle');
+    }
+    
+    // Jumping
+    if ((keys.includes('w') || keys.includes('ArrowUp')) && opponentPlayer.velocity.y === 0) {
+        opponentPlayer.velocity.y = -20;
+        opponentPlayer.switchSprite('jump');
+    }
+    
+    // Attacking
+    if ((keys.includes(' ') || keys.includes('ArrowDown')) && !opponentPlayer.isAttacking) {
+        opponentPlayer.attack();
+    }
 }
 
 // Handle data for wallet mode with move validation

@@ -5,9 +5,9 @@ class MoveSync {
     this.lastSequence = 0;
     this.targetFps = fps;
     this.currentFps = fps;
-    this.lastUpdateTime = 0;
-    this.frameDelta = 0;
-    this.maxFrameDelta = 5; // Maximum allowed frame difference
+    this.pendingMoves = []; // Queue of moves to be applied
+    this.lastMoveTime = 0;
+    this.processingMoves = false;
   }
 
   // Add a new move to the history
@@ -22,9 +22,9 @@ class MoveSync {
     return move;
   }
 
-  // Get all moves since a specific sequence number
-  getMovesSince(sequence = 0) {
-    return this.moveHistory.filter(move => move.sequence > sequence);
+  // Get the entire move history
+  getMoveHistory() {
+    return this.moveHistory;
   }
 
   // Get the latest move sequence number
@@ -32,30 +32,36 @@ class MoveSync {
     return this.lastSequence;
   }
 
-  // Process received moves from opponent
-  processMoves(receivedMoves) {
-    if (!receivedMoves || !receivedMoves.length) return { valid: false, reason: 'No moves received' };
+  // Process received move history from opponent
+  processOpponentHistory(receivedHistory) {
+    if (!receivedHistory || !receivedHistory.length) {
+      return { valid: false, reason: 'No moves received' };
+    }
 
     // Sort received moves by sequence
-    const sortedMoves = [...receivedMoves].sort((a, b) => a.sequence - b.sequence);
+    const sortedMoves = [...receivedHistory].sort((a, b) => a.sequence - b.sequence);
     
-    // Get the latest move we have for this player
-    const latestSequence = this.getLatestSequence();
+    // Find new moves that we don't have yet
+    const newMoves = [];
+    const existingSequences = new Set(this.moveHistory.map(move => move.sequence));
     
-    // Filter only new moves
-    const newMoves = sortedMoves.filter(move => move.sequence > latestSequence);
+    for (const move of sortedMoves) {
+      if (!existingSequences.has(move.sequence)) {
+        newMoves.push(move);
+      }
+    }
     
     if (newMoves.length === 0) {
       return { valid: true, newMoves: [] };
     }
     
     // Validate move sequence continuity
-    for (let i = 0; i < newMoves.length; i++) {
-      const expectedSequence = latestSequence + i + 1;
-      if (newMoves[i].sequence !== expectedSequence) {
+    newMoves.sort((a, b) => a.sequence - b.sequence);
+    for (let i = 1; i < newMoves.length; i++) {
+      if (newMoves[i].sequence !== newMoves[i-1].sequence + 1) {
         return { 
           valid: false, 
-          reason: `Invalid sequence: expected ${expectedSequence}, got ${newMoves[i].sequence}` 
+          reason: `Non-continuous sequence: ${newMoves[i-1].sequence} to ${newMoves[i].sequence}` 
         };
       }
     }
@@ -72,50 +78,49 @@ class MoveSync {
       }
     }
     
-    // Calculate frame delta (how many frames ahead/behind we are)
-    const expectedMoveCount = Math.floor((Date.now() - this.lastUpdateTime) / (1000 / this.targetFps));
-    this.frameDelta = newMoves.length - expectedMoveCount;
-    
-    // Clamp frame delta
-    this.frameDelta = Math.max(-this.maxFrameDelta, Math.min(this.maxFrameDelta, this.frameDelta));
+    // Add new moves to the pending queue for gradual application
+    this.pendingMoves.push(...newMoves);
     
     // Add valid moves to our history
-    newMoves.forEach(move => {
+    for (const move of newMoves) {
       this.moveHistory.push(move);
-      this.lastSequence = move.sequence;
-    });
-    
-    this.lastUpdateTime = Date.now();
-    
-    // Adjust FPS based on frame delta
-    this.adjustFps();
+      if (move.sequence > this.lastSequence) {
+        this.lastSequence = move.sequence;
+      }
+    }
     
     return { valid: true, newMoves };
   }
   
-  // Adjust rendering FPS based on frame delta
-  adjustFps() {
-    // If we're ahead, slow down; if behind, speed up
-    const adjustment = this.frameDelta * 2; // 2 fps per frame of difference
-    this.currentFps = this.targetFps - adjustment;
+  // Get the next move to apply based on frame timing
+  getNextMoveToApply() {
+    if (this.pendingMoves.length === 0) {
+      return null;
+    }
     
-    // Clamp to reasonable values (15-60 fps)
-    this.currentFps = Math.max(15, Math.min(60, this.currentFps));
+    const now = Date.now();
+    const timeSinceLastMove = now - this.lastMoveTime;
+    const frameTime = 1000 / this.targetFps;
     
-    return this.currentFps;
+    // Only apply a move if enough time has passed since the last one
+    if (timeSinceLastMove >= frameTime) {
+      this.lastMoveTime = now;
+      return this.pendingMoves.shift(); // Get and remove the first move
+    }
+    
+    return null;
   }
   
-  // Get the current adjusted FPS
+  // Get the current FPS
   getCurrentFps() {
-    return this.currentFps;
+    return this.targetFps;
   }
   
   // Clear move history (e.g., when game restarts)
   clear() {
     this.moveHistory = [];
+    this.pendingMoves = [];
     this.lastSequence = 0;
-    this.frameDelta = 0;
-    this.currentFps = this.targetFps;
-    this.lastUpdateTime = Date.now();
+    this.lastMoveTime = 0;
   }
 }

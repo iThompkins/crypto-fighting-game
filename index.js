@@ -446,17 +446,29 @@ function sendPlayerState() {
   const now = Date.now();
   const minTimeBetweenSends = 1000 / gameState.moveSync.getCurrentFps();
   
-  // Throttle sending based on adjusted FPS
+  // Throttle sending based on target FPS
   if (now - lastSendTime < minTimeBetweenSends) return;
   
   lastSendTime = now;
   sendGameMove(currentKeys);
 }
 
+// Process any pending opponent moves
+function processOpponentMoves() {
+  if (!gameState.gameStarted || gameState.gameEnded) return;
+  
+  // Get the next move to apply based on timing
+  const nextMove = gameState.moveSync.getNextMoveToApply();
+  if (nextMove) {
+    applyMoveToOpponent(nextMove);
+  }
+}
+
 // Call sendPlayerState on each animation frame
 function updateNetworkState() {
   if (gameState.gameStarted && !gameState.gameEnded) {
     sendPlayerState();
+    processOpponentMoves();
   }
   requestAnimationFrame(updateNetworkState);
 }
