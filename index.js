@@ -148,6 +148,57 @@ const player2 = new Fighter({
   facingLeft: true // Player 2 should face left by default
 })
 
+// Initialize current sprite property
+player.currentSprite = 'idle';
+player2.currentSprite = 'idle';
+
+// Initialize game playback
+let gamePlayback = null;
+
+// Function to start playback of the game
+function startPlayback() {
+  // Hide game end text
+  document.querySelector('#displayText').style.display = 'none';
+  
+  // Create playback controller with combined move history
+  const combinedHistory = [...gameState.moveSync.getMoveHistory()];
+  combinedHistory.sort((a, b) => a.timestamp - b.timestamp);
+  
+  console.log(`Starting playback with ${combinedHistory.length} moves`);
+  
+  gamePlayback = new GamePlayback(combinedHistory, player, player2);
+  gamePlayback.start();
+  
+  // Add playback controls
+  const controlsHtml = `
+    <div id="playback-controls" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 1000;">
+      <button onclick="gamePlayback.pause()" style="padding: 5px 10px; font-family: 'Press Start 2P', cursive; font-size: 10px;">
+        Pause
+      </button>
+      <button onclick="gamePlayback.resume()" style="padding: 5px 10px; font-family: 'Press Start 2P', cursive; font-size: 10px;">
+        Play
+      </button>
+      <button onclick="gamePlayback.setSpeed(0.5)" style="padding: 5px 10px; font-family: 'Press Start 2P', cursive; font-size: 10px;">
+        0.5x
+      </button>
+      <button onclick="gamePlayback.setSpeed(1.0)" style="padding: 5px 10px; font-family: 'Press Start 2P', cursive; font-size: 10px;">
+        1.0x
+      </button>
+      <button onclick="gamePlayback.setSpeed(2.0)" style="padding: 5px 10px; font-family: 'Press Start 2P', cursive; font-size: 10px;">
+        2.0x
+      </button>
+      <button onclick="location.reload()" style="padding: 5px 10px; font-family: 'Press Start 2P', cursive; font-size: 10px;">
+        Exit
+      </button>
+    </div>
+  `;
+  
+  // Add controls to the DOM
+  const controlsDiv = document.createElement('div');
+  controlsDiv.innerHTML = controlsHtml;
+  document.body.appendChild(controlsDiv.firstElementChild);
+}
+
 console.log(player)
 
 const keys = {
