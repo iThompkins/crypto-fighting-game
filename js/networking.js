@@ -347,6 +347,10 @@ function handleFreePlayData(data) {
         
         if (result.valid) {
             console.log(`Received ${result.newMoves.length} new moves from opponent`);
+            // Log each new move for debugging
+            result.newMoves.forEach(move => {
+                console.log(`Opponent move: seq=${move.sequence}, keys=${JSON.stringify(move.keys)}, time=${new Date(move.timestamp).toISOString()}`);
+            });
             // Moves will be applied gradually in the animation loop
         } else {
             console.error('Invalid move history received:', result.reason);

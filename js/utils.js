@@ -25,9 +25,18 @@ function determineWinner({ player, player2, timerId }) {
     document.querySelector('#displayText').innerHTML = 'Player 2 Wins'
   }
   
-  // Add a restart button
+  // Add a restart button and playback button
   setTimeout(() => {
-    document.querySelector('#displayText').innerHTML += '<div><button onclick="location.reload()" style="margin-top: 20px; padding: 10px; font-family: \'Press Start 2P\', cursive;">Play Again</button></div>'
+    document.querySelector('#displayText').innerHTML += `
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+        <button onclick="startPlayback()" style="padding: 10px; font-family: 'Press Start 2P', cursive;">
+          Watch Replay
+        </button>
+        <button onclick="location.reload()" style="padding: 10px; font-family: 'Press Start 2P', cursive;">
+          Play Again
+        </button>
+      </div>
+    `
   }, 2000);
 }
 
