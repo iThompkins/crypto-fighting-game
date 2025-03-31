@@ -40,16 +40,4 @@ function determineWinner({ player, player2, timerId }) {
   }, 2000);
 }
 
-let timer = 10
-let timerId
-function decreaseTimer() {
-  if (timer > 0) {
-    timerId = setTimeout(decreaseTimer, 1000)
-    timer--
-    document.querySelector('#timer').innerHTML = timer
-  }
-
-  if (timer === 0) {
-    determineWinner({ player, player2, timerId })
-  }
-}
+// Timer is now managed by moveSync

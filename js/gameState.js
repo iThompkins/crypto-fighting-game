@@ -44,10 +44,14 @@ function startCountdown() {
 function startGame() {
   gameState.gameStarted = true;
   
+  // Initialize game start time in move sync
+  gameState.moveSync.initGame(isHost);
+  
   // Ensure player orientations are correct
   player.facingLeft = false;
   player.switchSprite('idle');
   // Player 2 is already facing left by default
   
-  decreaseTimer();
+  // We don't need the old timer anymore as it's managed by moveSync
+  // decreaseTimer();
 }

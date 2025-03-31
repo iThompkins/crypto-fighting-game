@@ -272,9 +272,27 @@ function updatePlayerState(keys) {
     controlledPlayer.velocity.y += gravity;
   }
 
-  // Collision detection - only check if we control the attacking player
-  if (isHost && rectangularCollision({rectangle1: player, rectangle2: player2}) &&
+  // Collision detection - check for both players
+  // This ensures both machines detect the same collisions
+  if (rectangularCollision({rectangle1: player, rectangle2: player2}) &&
       player.isAttacking && player.framesCurrent === 4 && !player2.dead) {
+    // Record the hit in our move history
+    if (isHost) {
+      // Add a special "hit" move to the history
+      const hitMove = {
+        keys: ['hit-p2'],
+        timestamp: Date.now(),
+        sequence: ++gameState.moveSync.lastSequence,
+        isHost: true,
+        hitData: {
+          attacker: 'player1',
+          defender: 'player2',
+          damage: 20
+        }
+      };
+      gameState.moveSync.moveHistory.push(hitMove);
+    }
+    
     player2.takeHit();
     player.isAttacking = false;
     gsap.to('#player2Health', {width: player2.health + '%'});
@@ -282,12 +300,29 @@ function updatePlayerState(keys) {
     // Check for game over
     if (player2.health <= 0) {
       player2.dead = true;
-      determineWinner({ player, player2, timerId });
+      determineWinner({ player, player2, timerId: null });
     }
   }
 
-  if (!isHost && rectangularCollision({rectangle1: player2, rectangle2: player}) &&
+  if (rectangularCollision({rectangle1: player2, rectangle2: player}) &&
       player2.isAttacking && player2.framesCurrent === 2 && !player.dead) {
+    // Record the hit in our move history
+    if (!isHost) {
+      // Add a special "hit" move to the history
+      const hitMove = {
+        keys: ['hit-p1'],
+        timestamp: Date.now(),
+        sequence: ++gameState.moveSync.lastSequence,
+        isHost: false,
+        hitData: {
+          attacker: 'player2',
+          defender: 'player1',
+          damage: 20
+        }
+      };
+      gameState.moveSync.moveHistory.push(hitMove);
+    }
+    
     player.takeHit();
     player2.isAttacking = false;
     gsap.to('#playerHealth', {width: player.health + '%'});
@@ -295,7 +330,7 @@ function updatePlayerState(keys) {
     // Check for game over
     if (player.health <= 0) {
       player.dead = true;
-      determineWinner({ player, player2, timerId });
+      determineWinner({ player, player2, timerId: null });
     }
   }
 
@@ -504,14 +539,42 @@ function sendPlayerState() {
   sendGameMove(currentKeys);
 }
 
-// Process any pending opponent moves
-function processOpponentMoves() {
+// Process all unprocessed moves for the current frame
+function processGameMoves() {
   if (!gameState.gameStarted || gameState.gameEnded) return;
   
-  // Get the next move to apply based on timing
-  const nextMove = gameState.moveSync.getNextMoveToApply();
-  if (nextMove) {
-    applyMoveToOpponent(nextMove);
+  // Get all moves that should be applied in the current frame
+  const moves = gameState.moveSync.getUnprocessedMoves();
+  
+  if (moves.length > 0) {
+    console.log(`Processing ${moves.length} moves for frame ${gameState.moveSync.getCurrentFrame()}`);
+    
+    // Apply each move in sequence
+    moves.forEach(move => {
+      // Apply move to the appropriate player
+      if ((move.isHost && isHost) || (!move.isHost && !isHost)) {
+        // This is our own move, already applied
+      } else {
+        // This is opponent's move
+        applyMoveToOpponent(move);
+      }
+    });
+    
+    // Update game timer based on elapsed time
+    updateGameTimer();
+  }
+}
+
+// Update the game timer based on elapsed time
+function updateGameTimer() {
+  if (!gameState.gameStarted || gameState.gameEnded) return;
+  
+  const currentTime = gameState.moveSync.getGameTimerValue();
+  document.querySelector('#timer').innerHTML = currentTime;
+  
+  // Check if game should end
+  if (currentTime <= 0 && !gameState.gameEnded) {
+    determineWinner({ player, player2, timerId: null });
   }
 }
 
@@ -519,7 +582,7 @@ function processOpponentMoves() {
 function updateNetworkState() {
   if (gameState.gameStarted && !gameState.gameEnded) {
     sendPlayerState();
-    processOpponentMoves();
+    processGameMoves();
   }
   requestAnimationFrame(updateNetworkState);
 }

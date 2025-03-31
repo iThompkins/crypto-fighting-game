@@ -231,6 +231,9 @@ function handleConnection() {
         console.log('Connection established successfully');
         document.getElementById('auth-container').style.display = 'none';
         
+        // Initialize move sync with host status
+        gameState.moveSync.initGame(isHost);
+        
         // Player 2 is already facing left by default
         
         if (isHost) {
@@ -407,6 +410,37 @@ function applyMoveToOpponent(move) {
     
     const opponentPlayer = isHost ? player2 : player;
     const keys = move.keys;
+    
+    // Handle special hit events
+    if (keys.includes('hit-p1')) {
+        if (isHost) {
+            // Host is player 1, so apply hit to player 1
+            player.takeHit();
+            gsap.to('#playerHealth', {width: player.health + '%'});
+            
+            // Check for game over
+            if (player.health <= 0) {
+                player.dead = true;
+                determineWinner({ player, player2, timerId: null });
+            }
+        }
+        return;
+    }
+    
+    if (keys.includes('hit-p2')) {
+        if (!isHost) {
+            // Non-host is player 2, so apply hit to player 2
+            player2.takeHit();
+            gsap.to('#player2Health', {width: player2.health + '%'});
+            
+            // Check for game over
+            if (player2.health <= 0) {
+                player2.dead = true;
+                determineWinner({ player, player2, timerId: null });
+            }
+        }
+        return;
+    }
     
     // Reset velocity
     opponentPlayer.velocity.x = 0;
