@@ -560,36 +560,8 @@ function connectToPeerFreeplay() {
         console.error('PeerJS error:', err);
         let errorMessage = 'Connection error';
     
-    // Error handling
-    peer.on('error', (err) => {
-        console.error('PeerJS error:', err);
-        let errorMessage = 'Connection error';
-        
-        if (err.type === 'peer-unavailable') {
-            errorMessage = 'Game ID not found. Check the ID and try again.';
-        } else if (err.type === 'network') {
-            errorMessage = 'Network error. Check your connection.';
-        } else if (err.type === 'disconnected') {
-            errorMessage = 'Disconnected from server. Trying to reconnect...';
-            // Try to reconnect
-            peer.reconnect();
-        }
-        
-        // Display error to user
-        document.getElementById('peer-id-display').innerHTML += `
-            <p style="color: #ff6b6b; margin-top: 10px;">${errorMessage}</p>
-        `;
-    });
-    
-    // Handle disconnection
-    peer.on('disconnected', () => {
-        console.log('PeerJS disconnected. Attempting to reconnect...');
-        document.getElementById('peer-id-display').innerHTML += `
-            <p style="color: #ffcc00; margin-top: 10px;">Connection lost. Reconnecting...</p>
-        `;
-        peer.reconnect();
-    });
-}
+} // End of initializePeerForFreeplay (or potentially initializePeerWithGameId if misplaced)
+// Removed old peer.on('error') and peer.on('disconnected') handlers previously here.
 
 function connectToPeer() {
     // Determine which input/button to use based on mode
