@@ -551,3 +551,32 @@ function updateNetworkState() {
 
 // Start network state updates
 updateNetworkState();
+
+// Function to download game history as JSON
+function downloadGameHistory() {
+  if (!gameState.moveSync || !gameState.moveSync.moveHistory) {
+    console.error("No game history available");
+    return;
+  }
+  
+  const gameHistoryData = {
+    timestamp: new Date().toISOString(),
+    totalMoves: gameState.moveSync.moveHistory.length,
+    gameLength: gameState.moveSync.getGameTime() / 1000, // in seconds
+    player1FinalHealth: player.health,
+    player2FinalHealth: player2.health,
+    winner: player.health > player2.health ? "Player 1" : 
+            player2.health > player.health ? "Player 2" : "Tie",
+    moves: gameState.moveSync.moveHistory
+  };
+  
+  const dataStr = JSON.stringify(gameHistoryData, null, 2);
+  const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+  
+  const exportFileDefaultName = 'game-history.json';
+  
+  const linkElement = document.createElement('a');
+  linkElement.setAttribute('href', dataUri);
+  linkElement.setAttribute('download', exportFileDefaultName);
+  linkElement.click();
+}
