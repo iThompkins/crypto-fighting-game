@@ -260,17 +260,25 @@
         Connect Wallet
       </button>
     </div>
-    <!-- Wallet connect section - now used for hosting/joining AFTER wallet connection -->
-    <div id="wallet-connect" style="display: none;">
-      <!-- Peer ID display will be populated by initializePeer -->
-      <div id="peer-id-display" style="margin: 10px; color: white; position: relative;">
-         <!-- Content dynamically added by JS -->
+    <!-- Wallet connect section - Shows game list and creation options -->
+    <div id="wallet-connect" style="display: none; color: white; text-align: left; max-width: 500px; margin: 0 auto;">
+      <p>Wallet: <span id="wallet-address-display"></span></p>
+      <hr style="border-color: rgba(255,255,255,0.2);">
+      
+      <div style="margin-bottom: 15px;">
+        <button onclick="handleCreateGame()" style="padding: 8px 12px; font-family: 'Press Start 2P', cursive; margin-right: 10px;">Create New Game</button>
+        <button onclick="displayGameList()" style="padding: 8px 12px; font-family: 'Press Start 2P', cursive;">Refresh List</button>
       </div>
-      <div id="connection-status" style="margin: 5px; font-size: 10px; color: #aaa;"></div>
-      <input id="peer-id-input" placeholder="Enter friend's game ID" style="margin: 10px; padding: 5px; font-family: 'Press Start 2P', cursive;">
-      <button onclick="connectToPeer()" style="padding: 10px; font-family: 'Press Start 2P', cursive;">Join Game</button>
+      
+      <h3 style="margin-bottom: 10px;">Your Games:</h3>
+      <div id="game-list-container" style="max-height: 200px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.3); padding: 10px; min-height: 50px;">
+        <!-- Game list will be populated here by JS -->
+        <p id="game-list-status">Loading games...</p>
+      </div>
+      <div id="connection-status" style="margin-top: 15px; font-size: 12px; color: #aaa;"></div>
     </div>
-    <!-- Freeplay connect section -->
+    
+    <!-- Freeplay connect section (remains unchanged) -->
     <div id="freeplay-connect" style="display: none;">
       <div id="peer-id-display" style="margin: 10px; color: white; position: relative;">
         <div id="copy-tooltip" style="position: absolute; background: rgba(0,0,0,0.8); color: white; padding: 5px; border-radius: 4px; font-size: 12px; bottom: 100%; left: 50%; transform: translateX(-50%); display: none; white-space: nowrap;">
