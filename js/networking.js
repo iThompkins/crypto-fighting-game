@@ -2,17 +2,41 @@ let peer = null;
 let conn = null;
 let isHost = false;
 let gameMode = null;
+window.ephemeralWallet = null; // Store the ephemeral wallet globally
 
-function selectMode(mode) {
+async function selectMode(mode) {
   gameMode = mode;
   document.getElementById('mode-select').style.display = 'none';
-  
+
   if (mode === 'wallet') {
-    document.getElementById('wallet-connect').style.display = 'block';
-    checkWalletAndInit();
+    try {
+      // 1. Connect Wallet immediately
+      const wallet = await connectWallet();
+      if (!wallet) {
+        alert('Failed to connect wallet. Please try again.');
+        // Revert to mode selection if wallet connection fails
+        document.getElementById('mode-select').style.display = 'block';
+        document.getElementById('wallet-connect').style.display = 'none';
+        return;
+      }
+      window.ephemeralWallet = wallet; // Store wallet globally
+
+      // 2. Show the connection UI (host/join)
+      document.getElementById('wallet-connect').style.display = 'block';
+
+      // 3. Initialize PeerJS to get the ID and listen for connections
+      initializePeer(wallet);
+
+    } catch (error) {
+        console.error('Wallet mode initialization error:', error);
+        alert('Failed to initialize wallet mode. Please try again.');
+        document.getElementById('mode-select').style.display = 'block';
+        document.getElementById('wallet-connect').style.display = 'none';
+    }
   } else {
+    // Freeplay mode initialization
     document.getElementById('freeplay-connect').style.display = 'block';
-    initializePeer();
+    initializePeer(); // Initialize without wallet for freeplay
   }
 }
 
@@ -30,37 +54,11 @@ window.addEventListener('load', () => {
   document.getElementById('mode-select').style.display = 'block';
 });
 
-async function checkWalletAndInit() {
-    const existingWallet = await checkExistingWallet();
-    if (existingWallet) {
-        initializePeer(existingWallet);
-    } else {
-        // Show join button if no wallet exists
-        document.getElementById('auth-container').innerHTML = `
-            <button onclick="initializeNetworking()" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px;">
-                Join Game
-            </button>
-        `;
-    }
-}
-
-async function initializeNetworking() {
-    try {
-        const wallet = await connectWallet();
-        if (!wallet) {
-            alert('Failed to connect wallet. Please try again.');
-            return;
-        }
-        initializePeer(wallet);
-    } catch (error) {
-        console.error('Networking initialization error:', error);
-        alert('Failed to initialize networking. Please try again.');
-    }
-}
+// Removed checkWalletAndInit and initializeNetworking as they are replaced by the new selectMode flow
 
 function initializePeer(wallet = null) {
-    // Create a random peer ID for freeplay mode or use wallet address
-    const peerId = wallet ? wallet.address.slice(2, 12) : Math.random().toString(36).substr(2, 10);
+    // Use wallet address prefix for ID in wallet mode, random for freeplay
+    const peerId = wallet ? `crypto-${wallet.address.slice(2, 12)}` : `free-${Math.random().toString(36).substr(2, 9)}`;
     
     // Configure PeerJS with ICE servers for better connectivity
     const peerConfig = {
@@ -87,33 +85,61 @@ function initializePeer(wallet = null) {
         <div style="width: 20px; height: 20px; margin: 10px auto; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
     `;
     
+    // Determine which container to update based on mode
+    const displayContainerId = gameMode === 'wallet' ? 'wallet-connect' : 'freeplay-connect';
+    const peerDisplayElement = document.querySelector(`#${displayContainerId} #peer-id-display`);
+    const connectionStatusElement = document.querySelector(`#${displayContainerId} #connection-status`);
+
+    if (peerDisplayElement) {
+        peerDisplayElement.innerHTML = `
+            <p>Connecting to network...</p>
+            <div style="width: 20px; height: 20px; margin: 10px auto; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        `;
+    }
+
     peer = new Peer(peerId, peerConfig);
 
     peer.on('open', (id) => {
         console.log('My peer ID is: ' + id);
-        if (wallet) {
-            document.getElementById('peer-id-display').innerHTML = `
-                <p>Connected with wallet: ${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}</p>
-                <p>Your game ID: <span style="background: rgba(255,255,255,0.1); padding: 5px; border-radius: 4px;">${id}</span></p>
-            `;
-            
-            // Initialize signed move manager for wallet mode
-            initSignedMoveManager(wallet.address);
-        } else {
-            document.getElementById('peer-id-display').innerHTML = `
-                <p>Your game ID: <span style="background: rgba(255,255,255,0.1); padding: 5px; border-radius: 4px;">${id}</span></p>
-            `;
+        if (peerDisplayElement) {
+             if (wallet) {
+                 peerDisplayElement.innerHTML = `
+                    <p>Wallet: ${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}</p>
+                    <p>Your game ID: <span style="background: rgba(255,255,255,0.1); padding: 5px; border-radius: 4px; cursor: pointer;" onclick="copyPeerId(this.parentNode)" title="Click to copy game ID">${id}</span></p>
+                    <div id="copy-tooltip" style="position: absolute; background: rgba(0,0,0,0.8); color: white; padding: 5px; border-radius: 4px; font-size: 12px; bottom: 100%; left: 50%; transform: translateX(-50%); display: none; white-space: nowrap;">
+                      Copied!
+                    </div>
+                 `;
+             } else {
+                 peerDisplayElement.innerHTML = `
+                    <p>Your game ID: <span style="background: rgba(255,255,255,0.1); padding: 5px; border-radius: 4px; cursor: pointer;" onclick="copyPeerId(this.parentNode)" title="Click to copy game ID">${id}</span></p>
+                     <div id="copy-tooltip" style="position: absolute; background: rgba(0,0,0,0.8); color: white; padding: 5px; border-radius: 4px; font-size: 12px; bottom: 100%; left: 50%; transform: translateX(-50%); display: none; white-space: nowrap;">
+                       Copied!
+                     </div>
+                 `;
+             }
         }
-        
-        // Start rendering the game immediately after connection
-        gameState.player1Connected = true;
-        player.show();
+        if (connectionStatusElement) {
+            connectionStatusElement.textContent = 'Waiting for connection...';
+            connectionStatusElement.style.color = '#aaa';
+        }
+
+        // Don't show player yet, wait for connection
+        // gameState.player1Connected = true;
+        // player.show();
     });
 
+    // Listen for incoming connections (acts as host)
     peer.on('connection', (connection) => {
+        console.log("Incoming connection received.");
+        if (conn && conn.open) {
+            console.warn("Already connected to a peer. Rejecting new connection.");
+            connection.close();
+            return;
+        }
         conn = connection;
-        isHost = true;
-        handleConnection();
+        isHost = true; // The one receiving the connection is the host
+        handleConnection(); // Set up handlers for the established connection
     });
     
     // Error handling
@@ -148,15 +174,30 @@ function initializePeer(wallet = null) {
 }
 
 function connectToPeer() {
-    const peerId = document.getElementById('peer-id-input').value.trim();
-    
+    // Determine which input/button to use based on mode
+    const containerId = gameMode === 'wallet' ? 'wallet-connect' : 'freeplay-connect';
+    const peerIdInput = document.querySelector(`#${containerId} #peer-id-input`);
+    const joinButton = document.querySelector(`#${containerId} button[onclick="connectToPeer()"]`); // Target specific button
+
+    if (!peerIdInput || !joinButton) {
+        console.error("Could not find connection elements for mode:", gameMode);
+        alert("UI error: Could not find connection elements.");
+        return;
+    }
+
+    const peerId = peerIdInput.value.trim();
+
     if (!peerId) {
         alert('Please enter a valid Game ID');
         return;
     }
-    
+
+    if (!peer || peer.disconnected) {
+        alert('Not connected to the signaling server. Please refresh.');
+        return;
+    }
+
     // Show connecting status
-    const joinButton = document.querySelector('#freeplay-connect button');
     const originalText = joinButton.textContent;
     joinButton.innerHTML = 'Connecting... <div style="width: 10px; height: 10px; display: inline-block; margin-left: 5px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>';
     joinButton.disabled = true;
@@ -187,11 +228,11 @@ function connectToPeer() {
             joinButton.disabled = false;
             alert('Connection error: ' + err.message);
         });
-        
-        isHost = false;
-        handleConnection();
-        
-        // Reset button after successful connection
+
+        isHost = false; // The one initiating the connection is the client
+        handleConnection(); // Set up handlers for the established connection
+
+        // Reset button text after successful connection attempt starts
         conn.on('open', () => {
             clearTimeout(connectionTimeout);
             joinButton.textContent = 'Connected!';
@@ -232,50 +273,68 @@ function handleConnection() {
         document.getElementById('auth-container').style.display = 'none';
         
         // Initialize move sync with host status
+        // Initialize move sync and player states
         gameState.moveSync.initGame(isHost);
-        
-        // Player 2 is already facing left by default
-        
+
+        // Set initial player visibility and orientation
         if (isHost) {
-            // Host is always player 1
+            // Host setup (Player 1)
             gameState.player1Connected = true;
             player.show();
-            player.facingLeft = false; // Ensure player 1 faces right
+            player.facingLeft = false;
             player.switchSprite('idle');
-            gameState.player2Connected = true;
+            player2.facingLeft = true; // Opponent faces left
+            player2.switchSprite('idle');
+
+            gameState.player1Connected = true; // Local player
+            player.show();
+            gameState.player2Connected = true; // Remote player
             player2.show();
-            // Player 2 is already facing left by default
-            // Tell the other peer they're player 2
-            conn.send({ type: 'playerAssignment', isPlayer2: true });
-            // Host starts countdown
+
+            // Initialize SignedMoveManager if in wallet mode
+            if (gameMode === 'wallet' && window.ephemeralWallet) {
+                initSignedMoveManager(window.ephemeralWallet.address);
+            }
+
+            // Tell the other peer they are player 2 (client)
+            conn.send({ type: 'playerAssignment', assignment: 'player2' });
+
+            // Host starts the countdown
             startCountdown();
-            // Start ping/pong
-            startPingPong();
-            // Start connection status updates
-            startConnectionStatusUpdates();
+
         } else {
-            // Joiner is always player 2
-            gameState.player1Connected = true;
-            player.show();
-            player.facingLeft = false; // Ensure player 1 faces right
+            // Client setup (Player 2)
+            player.facingLeft = false; // Opponent faces right
             player.switchSprite('idle');
-            gameState.player2Connected = true;
+            player2.facingLeft = true;
+            player2.switchSprite('idle');
+
+            gameState.player1Connected = true; // Remote player
+            player.show();
+            gameState.player2Connected = true; // Local player
             player2.show();
-            // Player 2 is already facing left by default
-            // Start ping/pong
-            startPingPong();
-            // Start connection status updates
-            startConnectionStatusUpdates();
+
+             // Initialize SignedMoveManager if in wallet mode
+            if (gameMode === 'wallet' && window.ephemeralWallet) {
+                // Client uses their own wallet address for their manager
+                initSignedMoveManager(window.ephemeralWallet.address);
+            }
+            // Client waits for countdown start signal (handled in 'playerAssignment')
         }
+    });
+
+        // Start ping/pong and status updates for both host and client
+        startPingPong();
+        startConnectionStatusUpdates();
     });
 
     conn.on('data', (data) => {
         try {
-            if (data.type === 'playerAssignment') {
-                // Start countdown for player 2
+            if (data.type === 'playerAssignment' && data.assignment === 'player2' && !isHost) {
+                // Client receives assignment and starts countdown
+                console.log("Assigned as Player 2 by host.");
                 startCountdown();
             } else if (data.type === 'ping' || data.type === 'pong') {
-                // Handle ping/pong for connection health
                 handlePingPong(data);
             } else if (gameMode === 'wallet') {
                 // Wallet mode uses move validation
