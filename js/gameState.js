@@ -4,19 +4,20 @@ const gameState = {
   gameStarted: false,
   gameEnded: false,
   animationStarted: false,
-  moveValidator: null,
-  genesisHash: null, // Will be set when game starts
-  moveSync: new MoveSync(30), // Initialize with 30fps target
+  signedMoveManager: null, // Renamed from moveValidator
+  genesisHash: ethers.constants.HashZero, // Use a standard genesis hash
+  moveSync: new MoveSync(30), // Still used for freeplay and playback history
   lastMoveTime: 0 // Time of last move sent
 };
 
-// Initialize move validator (only used in wallet mode)
-function initMoveValidator(playerId) {
+// Initialize the signed move manager (only used in wallet mode)
+function initSignedMoveManager(localPlayerId) {
   // Only initialize if in wallet mode
   if (gameMode === 'wallet') {
-    // In wallet mode, this would come from smart contract
-    gameState.genesisHash = 'genesis-' + Math.random().toString(36).substr(2);
-    gameState.moveValidator = new MoveValidator(playerId, gameState.genesisHash);
+    // Use a fixed genesis hash or derive one if needed
+    // gameState.genesisHash = ethers.utils.id("CryptoFighterGenesis");
+    gameState.signedMoveManager = new SignedMoveManager(localPlayerId, gameState.genesisHash);
+    console.log(`SignedMoveManager initialized for ${localPlayerId} with genesis ${gameState.genesisHash}`);
   }
 }
 

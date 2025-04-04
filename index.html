@@ -255,16 +255,18 @@
       <button onclick="selectMode('freeplay')" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px; margin: 5px;">
         Free Play
       </button>
-      <button onclick="showWalletTooltip(this)" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px; margin: 5px; background-color: #cccccc; color: #666666; position: relative; cursor: not-allowed;">
+      <!-- Re-enabled Wallet Button -->
+      <button onclick="selectMode('wallet')" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px; margin: 5px;">
         Connect Wallet
-        <span class="tooltip" style="visibility: hidden; width: 120px; background-color: black; color: #fff; text-align: center; border-radius: 6px; padding: 5px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -60px; font-size: 10px;">Coming Soon</span>
       </button>
     </div>
+    <!-- Wallet connect section remains hidden initially, shown by selectMode -->
     <div id="wallet-connect" style="display: none;">
-      <button id="connect-wallet" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px; position: relative;">
-        <span id="wallet-button-text">Connect Wallet</span>
+       <!-- Use initializeNetworking directly now -->
+      <button onclick="initializeNetworking()" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px; position: relative;">
+        <span id="wallet-button-text">Connect Wallet & Start</span>
         <div id="wallet-loader" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
-          <div style="width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+           <div style="width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
         </div>
       </button>
     </div>

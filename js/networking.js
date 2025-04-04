@@ -97,8 +97,8 @@ function initializePeer(wallet = null) {
                 <p>Your game ID: <span style="background: rgba(255,255,255,0.1); padding: 5px; border-radius: 4px;">${id}</span></p>
             `;
             
-            // Initialize move validator for wallet mode
-            initMoveValidator(wallet.address);
+            // Initialize signed move manager for wallet mode
+            initSignedMoveManager(wallet.address);
         } else {
             document.getElementById('peer-id-display').innerHTML = `
                 <p>Your game ID: <span style="background: rgba(255,255,255,0.1); padding: 5px; border-radius: 4px;">${id}</span></p>
@@ -438,49 +438,87 @@ function applyRemoteState() {
 
 // This function is no longer needed as we're using direct state synchronization
 
-// Handle data for wallet mode with move validation
+// Handle incoming signed game state data in wallet mode
 function handleWalletGameData(data) {
-    // Validate move chain
-    const validation = gameState.moveValidator.validateMoveChain(data.moveChain);
-    
-    if (!validation.valid) {
-        alert(`Invalid game state detected: ${validation.reason}`);
-        // TODO: Submit bad game state to contract
+    if (data.type !== 'signedGameState' || !data.signedState) {
+        console.warn("Received unexpected data format in wallet mode:", data);
         return;
     }
 
-    // Add valid move to our chain
-    gameState.moveValidator.addMove(validation.newMove);
-    
-    // Update opponent state based on the new move
+    if (!gameState.signedMoveManager) {
+        console.error("SignedMoveManager not initialized. Cannot process wallet game data.");
+        return;
+    }
+
+    // Validate the incoming signed state using the manager
+    const validationResult = gameState.signedMoveManager.validateAndStoreRemoteState(data.signedState);
+
+    if (!validationResult.valid) {
+        console.error(`Invalid remote state received: ${validationResult.reason}`, data.signedState);
+        // TODO: Handle invalid state (e.g., alert user, potentially disconnect or flag for dispute)
+        alert(`Invalid game state received from opponent: ${validationResult.reason}. Gameplay might be compromised.`);
+        // For now, we'll stop processing this invalid state.
+        return;
+    }
+
+    // --- State is valid, apply it to the opponent's character ---
     const opponentPlayer = isHost ? player2 : player;
-    const keys = validation.newMove.keyCode;
-    
-    // Update visual state based on received keys
-    if (keys.includes('a') || keys.includes('ArrowLeft')) {
-        opponentPlayer.switchSprite('run');
-        opponentPlayer.velocity.x = -5;
-    } else if (keys.includes('d') || keys.includes('ArrowRight')) {
-        opponentPlayer.switchSprite('run');
-        opponentPlayer.velocity.x = 5;
-    } else {
-        opponentPlayer.switchSprite('idle');
-        opponentPlayer.velocity.x = 0;
-    }
+    const validatedRemoteState = validationResult.state; // The validated SignedGameState object
 
-    if ((keys.includes('w') || keys.includes('ArrowUp'))) {
-        if (opponentPlayer.velocity.y === 0) {
-            opponentPlayer.velocity.y = -20;
-            opponentPlayer.switchSprite('jump');
-        }
-    } else if (opponentPlayer.velocity.y > 0) {
-        opponentPlayer.switchSprite('fall');
-    }
+    try {
+        // Parse the state JSON string from the validated move data
+        const remotePlayerState = JSON.parse(validatedRemoteState.move.state);
 
-    // Handle attacking
-    if ((keys.includes(' ') || keys.includes('ArrowDown'))) {
-        if (!opponentPlayer.isAttacking) {
-            opponentPlayer.attack();
+        // Apply the parsed state (similar logic to applyRemoteState)
+        opponentPlayer.position.x = remotePlayerState.position.x;
+        opponentPlayer.position.y = remotePlayerState.position.y;
+        opponentPlayer.velocity.x = remotePlayerState.velocity.x;
+        opponentPlayer.velocity.y = remotePlayerState.velocity.y;
+        opponentPlayer.facingLeft = remotePlayerState.facingLeft;
+
+        // Update sprite if changed
+        if (remotePlayerState.currentSprite && opponentPlayer.currentSprite !== remotePlayerState.currentSprite) {
+            opponentPlayer.switchSprite(remotePlayerState.currentSprite);
+            opponentPlayer.currentSprite = remotePlayerState.currentSprite; // Keep track locally
         }
+
+        // Handle attacking state
+        // Check if the remote state *is* attacking, and our local representation *isn't*
+        if (remotePlayerState.isAttacking && !opponentPlayer.isAttacking) {
+             // Trigger the attack animation locally. The actual hit detection still happens client-side based on timing.
+             opponentPlayer.attack();
+        }
+        // Note: We might not need to explicitly set opponentPlayer.isAttacking = remotePlayerState.isAttacking
+        // because the attack() method and animation frames handle the attack duration.
+        // However, if desync occurs, explicitly setting it might be needed, but could cause visual glitches. Let's omit for now.
+
+        // Handle health updates (only apply if health decreased)
+        if (remotePlayerState.health < opponentPlayer.health) {
+            opponentPlayer.health = remotePlayerState.health;
+            const healthBarId = isHost ? '#player2Health' : '#playerHealth';
+            gsap.to(healthBarId, { width: opponentPlayer.health + '%' });
+
+            // Handle death state based on health
+            if (remotePlayerState.health <= 0 && !opponentPlayer.dead) {
+                 // Check the 'dead' flag from the remote state as well
+                 if (remotePlayerState.dead) {
+                    opponentPlayer.switchSprite('death');
+                    opponentPlayer.dead = true;
+                 } else {
+                     // If remote state says health is 0 but not dead yet, trigger takeHit locally
+                     // This might happen due to network latency.
+                     opponentPlayer.takeHit();
+                 }
+            }
+        }
+
+        // Handle explicit death state from remote (if health didn't trigger it)
+        if (remotePlayerState.dead && !opponentPlayer.dead) {
+             opponentPlayer.switchSprite('death');
+             opponentPlayer.dead = true;
+        }
+
+    } catch (error) {
+        console.error("Error parsing or applying remote player state:", error, validatedRemoteState);
     }
 }
