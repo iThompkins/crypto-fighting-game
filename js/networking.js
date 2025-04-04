@@ -321,12 +321,13 @@ function handleConnection() {
             }
             // Client waits for countdown start signal (handled in 'playerAssignment')
         }
-    });
 
-        // Start ping/pong and status updates for both host and client
+        // Start ping/pong and status updates for both host and client *after* connection is open
         startPingPong();
         startConnectionStatusUpdates();
     }); // End of conn.on('open')
+
+    // }); // REMOVED extra closing brace that was here
 
     conn.on('data', (data) => {
         try {
