@@ -326,7 +326,7 @@ function handleConnection() {
         // Start ping/pong and status updates for both host and client
         startPingPong();
         startConnectionStatusUpdates();
-    });
+    }); // End of conn.on('open')
 
     conn.on('data', (data) => {
         try {
@@ -366,8 +366,8 @@ function handleConnection() {
                 Reconnect
             </button>
         `;
-    });
-}
+    }); // End of conn.on('close')
+} // End of handleConnection function
 
 // Sends the current player state (either raw or signed depending on mode)
 async function sendPlayerState(player) {
