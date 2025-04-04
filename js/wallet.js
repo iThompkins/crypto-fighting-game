@@ -24,6 +24,51 @@ async function checkExistingWallet() {
     }
 }
 
+// Global variable to hold the decrypted wallet instance
+let ephemeralWalletInstance = null;
+
+async function getEphemeralWallet() {
+    if (ephemeralWalletInstance) {
+        return ephemeralWalletInstance;
+    }
+
+    const encryptedWallet = localStorage.getItem(WALLET_STORAGE_KEY);
+    if (!encryptedWallet) {
+        console.error("No encrypted wallet found in storage.");
+        return null;
+    }
+
+    try {
+        if (!window.ethereum) {
+            console.error("MetaMask is not available.");
+            return null;
+        }
+        
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (!accounts || accounts.length === 0) {
+            console.error("MetaMask not connected or no accounts found.");
+            // Maybe prompt connection again?
+            // For now, return null. User might need to reconnect via UI.
+            return null; 
+        }
+        
+        const password = accounts[0]; // Use MetaMask address as password
+        
+        // Decrypt the wallet
+        ephemeralWalletInstance = await ethers.Wallet.fromEncryptedJson(encryptedWallet, password);
+        console.log("Ephemeral wallet decrypted successfully:", ephemeralWalletInstance.address);
+        return ephemeralWalletInstance;
+    } catch (error) {
+        console.error('Error decrypting wallet for signing:', error);
+        // If decryption fails, remove invalid data and clear instance
+        localStorage.removeItem(WALLET_STORAGE_KEY);
+        ephemeralWalletInstance = null;
+        // Maybe alert the user or trigger re-generation flow?
+        alert("Failed to access your game wallet. You might need to reconnect your main wallet.");
+        return null;
+    }
+}
+
 async function generateAndEncryptWallet() {
     try {
         // Generate a new random wallet
