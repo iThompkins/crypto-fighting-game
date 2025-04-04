@@ -563,78 +563,7 @@ function connectToPeerFreeplay() {
 } // End of initializePeerForFreeplay (or potentially initializePeerWithGameId if misplaced)
 // Removed old peer.on('error') and peer.on('disconnected') handlers previously here.
 
-function connectToPeer() {
-    // Determine which input/button to use based on mode
-    const containerId = gameMode === 'wallet' ? 'wallet-connect' : 'freeplay-connect';
-    const peerIdInput = document.querySelector(`#${containerId} #peer-id-input`);
-    const joinButton = document.querySelector(`#${containerId} button[onclick="connectToPeer()"]`); // Target specific button
-
-    if (!peerIdInput || !joinButton) {
-        console.error("Could not find connection elements for mode:", gameMode);
-        alert("UI error: Could not find connection elements.");
-        return;
-    }
-
-    const peerId = peerIdInput.value.trim();
-
-    if (!peerId) {
-        alert('Please enter a valid Game ID');
-        return;
-    }
-
-    if (!peer || peer.disconnected) {
-        alert('Not connected to the signaling server. Please refresh.');
-        return;
-    }
-
-    // Show connecting status
-    const originalText = joinButton.textContent;
-    joinButton.innerHTML = 'Connecting... <div style="width: 10px; height: 10px; display: inline-block; margin-left: 5px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>';
-    joinButton.disabled = true;
-    
-    // Add connection timeout
-    const connectionTimeout = setTimeout(() => {
-        if (!conn || !conn.open) {
-            joinButton.textContent = originalText;
-            joinButton.disabled = false;
-            alert('Connection timed out. The other player may be offline or behind a firewall.');
-        }
-    }, 15000); // 15 second timeout
-    
-    try {
-        conn = peer.connect(peerId, {
-            reliable: true,
-            serialization: 'json'
-        });
-        
-        if (!conn) {
-            throw new Error('Failed to create connection');
-        }
-        
-        conn.on('error', (err) => {
-            console.error('Connection error:', err);
-            clearTimeout(connectionTimeout);
-            joinButton.textContent = originalText;
-            joinButton.disabled = false;
-            alert('Connection error: ' + err.message);
-        });
-
-        isHost = false; // The one initiating the connection is the client
-        handleConnection(); // Set up handlers for the established connection
-
-        // Reset button text after successful connection attempt starts
-        conn.on('open', () => {
-            clearTimeout(connectionTimeout);
-            joinButton.textContent = 'Connected!';
-        });
-    } catch (err) {
-        console.error('Error connecting to peer:', err);
-        clearTimeout(connectionTimeout);
-        joinButton.textContent = originalText;
-        joinButton.disabled = false;
-        alert('Error connecting: ' + err.message);
-    }
-}
+// Removed the old connectToPeer function. Use connectToPeerFreeplay or connectToHostPeer instead.
 
 function copyPeerId(element) {
     const idText = element.querySelector('span').textContent;
