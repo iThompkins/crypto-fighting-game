@@ -310,34 +310,91 @@ function handleConnection() {
     });
 }
 
-function sendPlayerState(player) {
-    if (conn && conn.open) {
-        try {
-            // Update local state in moveSync
+// Sends the current player state (either raw or signed depending on mode)
+async function sendPlayerState(player) {
+    if (!conn || !conn.open) return;
+
+    try {
+        let dataToSend;
+
+        if (gameMode === 'wallet') {
+            // --- Wallet Mode: Create and send SignedGameState ---
+            if (!gameState.signedMoveManager) {
+                console.error("SignedMoveManager not initialized for wallet mode.");
+                return;
+            }
+
+            const wallet = await getEphemeralWallet();
+            if (!wallet) {
+                console.error("Ephemeral wallet not available for signing.");
+                // Maybe alert the user or attempt re-authentication?
+                return;
+            }
+
+            // Create a snapshot of the player's current state
+            // Note: We still use moveSync to *get* the state structure easily,
+            // but the history/sequence there isn't the primary source of truth for wallet mode.
+            const currentStateSnapshot = {
+                position: { ...player.position },
+                velocity: { ...player.velocity },
+                health: player.health,
+                facingLeft: player.facingLeft,
+                isAttacking: player.isAttacking,
+                // Ensure currentSprite is captured correctly
+                currentSprite: player.image === player.sprites.idle.image ? 'idle' :
+                               player.image === player.sprites.run.image ? 'run' :
+                               player.image === player.sprites.jump.image ? 'jump' :
+                               player.image === player.sprites.fall.image ? 'fall' :
+                               player.image === player.sprites.attack1.image ? 'attack1' :
+                               player.image === player.sprites.takeHit.image ? 'takeHit' :
+                               player.image === player.sprites.death.image ? 'death' : 'idle',
+                dead: player.dead,
+                // timestamp added by SignedGameState constructor
+            };
+
+            // Create and sign the state using the manager
+            const signedState = await gameState.signedMoveManager.createAndSignLocalState(
+                currentStateSnapshot,
+                wallet
+            );
+
+            // Send the entire SignedGameState object
+            dataToSend = {
+                type: 'signedGameState', // Use a distinct type
+                signedState: signedState
+            };
+
+        } else {
+            // --- Free Play Mode: Send raw player state ---
+            // Update local state in moveSync (also adds to history for playback)
             const playerState = gameState.moveSync.updateLocalState(player);
-            
-            // Send current player state
-            conn.send({
+
+            dataToSend = {
                 type: 'playerState',
                 state: playerState
-            });
-        } catch (err) {
-            console.error('Error sending player state:', err);
-            // If we get an error sending data, check connection
-            if (!conn.open) {
-                console.log('Connection appears closed, attempting to reconnect');
-                // Connection might be closed, show reconnect option
-                document.getElementById('auth-container').style.display = 'block';
-                document.getElementById('auth-container').innerHTML = `
-                    <p style="color: white; margin-bottom: 20px;">Connection lost</p>
-                    <button onclick="location.reload()" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px;">
-                        Reconnect
-                    </button>
-                `;
-            }
+            };
+        }
+
+        // Send the prepared data
+        conn.send(dataToSend);
+
+    } catch (err) {
+        console.error(`Error sending player state (${gameMode} mode):`, err);
+        // If we get an error sending data, check connection
+        if (!conn.open) {
+            console.log('Connection appears closed, attempting to reconnect');
+            // Connection might be closed, show reconnect option
+            document.getElementById('auth-container').style.display = 'block';
+            document.getElementById('auth-container').innerHTML = `
+                <p style="color: white; margin-bottom: 20px;">Connection lost</p>
+                <button onclick="location.reload()" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px;">
+                    Reconnect
+                </button>
+            `;
         }
     }
 }
+
 
 // Handle data for free play mode
 function handleFreePlayData(data) {
