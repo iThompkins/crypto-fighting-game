@@ -464,9 +464,9 @@ function handlePingPong(data) {
     }
 }
 
-// Update local state and send moves to peer
+// Update local state and send to peer
 let lastSendTime = 0;
-function sendPlayerState() {
+function syncPlayerState() {
   if (!gameState.gameStarted || !conn || !conn.open) return;
   
   const now = Date.now();
@@ -476,7 +476,10 @@ function sendPlayerState() {
   if (now - lastSendTime < minTimeBetweenSends) return;
   
   lastSendTime = now;
-  sendGameMove(currentKeys);
+  
+  // Send the state of the player we control
+  const controlledPlayer = isHost ? player : player2;
+  sendPlayerState(controlledPlayer);
 }
 
 // Check for collisions and update game state
@@ -537,11 +540,11 @@ function updateGameTimer() {
   }
 }
 
-// Call sendPlayerState on each animation frame
+// Call syncPlayerState on each animation frame
 function updateNetworkState() {
   if (gameState.gameStarted && !gameState.gameEnded) {
-    sendPlayerState();
-    processGameMoves();
+    syncPlayerState();
+    processGameState();
   }
   requestAnimationFrame(updateNetworkState);
 }
