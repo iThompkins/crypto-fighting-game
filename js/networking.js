@@ -310,21 +310,19 @@ function handleConnection() {
     });
 }
 
-function sendGameMove(keys) {
+function sendPlayerState(player) {
     if (conn && conn.open) {
         try {
-            // Add move to our local history
-            const move = gameState.moveSync.addMove(keys);
+            // Update local state in moveSync
+            const playerState = gameState.moveSync.updateLocalState(player);
             
-            // Send the entire move history
-            const moveHistory = gameState.moveSync.getMoveHistory();
-            
+            // Send current player state
             conn.send({
-                type: 'gameMoves',
-                moveHistory: moveHistory
+                type: 'playerState',
+                state: playerState
             });
         } catch (err) {
-            console.error('Error sending game move:', err);
+            console.error('Error sending player state:', err);
             // If we get an error sending data, check connection
             if (!conn.open) {
                 console.log('Connection appears closed, attempting to reconnect');
@@ -343,20 +341,14 @@ function sendGameMove(keys) {
 
 // Handle data for free play mode
 function handleFreePlayData(data) {
-    // Check if this is a game moves packet
-    if (data.type === 'gameMoves' && data.moveHistory) {
-        // Process the received move history
-        const result = gameState.moveSync.processOpponentHistory(data.moveHistory);
+    // Check if this is a player state packet
+    if (data.type === 'playerState' && data.state) {
+        // Process the received player state
+        const success = gameState.moveSync.processRemoteState(data.state);
         
-        if (result.valid) {
-            console.log(`Received ${result.newMoves.length} new moves from opponent`);
-            // Log each new move for debugging
-            result.newMoves.forEach(move => {
-                console.log(`Opponent move: seq=${move.sequence}, keys=${JSON.stringify(move.keys)}, time=${new Date(move.timestamp).toISOString()}`);
-            });
-            // Moves will be applied gradually in the animation loop
-        } else {
-            console.error('Invalid move history received:', result.reason);
+        if (success) {
+            // Apply state to opponent player
+            applyRemoteState();
         }
         return;
     }
@@ -404,71 +396,47 @@ function handleFreePlayData(data) {
     }
 }
 
-// Apply a move to the opponent
-function applyMoveToOpponent(move) {
-    if (!move) return;
-    
+// Apply remote player state to the opponent
+function applyRemoteState() {
     const opponentPlayer = isHost ? player2 : player;
-    const keys = move.keys;
+    const remoteState = gameState.moveSync.remotePlayerState;
     
-    // Handle special hit events
-    if (keys.includes('hit-p1')) {
-        if (isHost) {
-            // Host is player 1, so apply hit to player 1
-            player.takeHit();
-            gsap.to('#playerHealth', {width: player.health + '%'});
-            
-            // Check for game over
-            if (player.health <= 0) {
-                player.dead = true;
-                determineWinner({ player, player2, timerId: null });
-            }
-        }
-        return;
+    // Update position
+    opponentPlayer.position.x = remoteState.position.x;
+    opponentPlayer.position.y = remoteState.position.y;
+    
+    // Update velocity
+    opponentPlayer.velocity.x = remoteState.velocity.x;
+    opponentPlayer.velocity.y = remoteState.velocity.y;
+    
+    // Update facing direction
+    opponentPlayer.facingLeft = remoteState.facingLeft;
+    
+    // Update sprite
+    if (remoteState.currentSprite && opponentPlayer.currentSprite !== remoteState.currentSprite) {
+        opponentPlayer.switchSprite(remoteState.currentSprite);
+        opponentPlayer.currentSprite = remoteState.currentSprite;
     }
     
-    if (keys.includes('hit-p2')) {
-        if (!isHost) {
-            // Non-host is player 2, so apply hit to player 2
-            player2.takeHit();
-            gsap.to('#player2Health', {width: player2.health + '%'});
-            
-            // Check for game over
-            if (player2.health <= 0) {
-                player2.dead = true;
-                determineWinner({ player, player2, timerId: null });
-            }
-        }
-        return;
-    }
-    
-    // Reset velocity
-    opponentPlayer.velocity.x = 0;
-    
-    // Movement
-    if (keys.includes('a') || keys.includes('ArrowLeft')) {
-        opponentPlayer.velocity.x = -5;
-        opponentPlayer.switchSprite('run');
-        opponentPlayer.facingLeft = !isHost; // Player 2 faces left when moving left
-    } else if (keys.includes('d') || keys.includes('ArrowRight')) {
-        opponentPlayer.velocity.x = 5;
-        opponentPlayer.switchSprite('run');
-        opponentPlayer.facingLeft = isHost; // Player 2 faces right when moving right
-    } else {
-        opponentPlayer.switchSprite('idle');
-    }
-    
-    // Jumping
-    if ((keys.includes('w') || keys.includes('ArrowUp')) && opponentPlayer.velocity.y === 0) {
-        opponentPlayer.velocity.y = -20;
-        opponentPlayer.switchSprite('jump');
-    }
-    
-    // Attacking
-    if ((keys.includes(' ') || keys.includes('ArrowDown')) && !opponentPlayer.isAttacking) {
+    // Handle attacking
+    if (remoteState.isAttacking && !opponentPlayer.isAttacking) {
         opponentPlayer.attack();
     }
+    
+    // Handle health updates
+    if (remoteState.health < opponentPlayer.health) {
+        opponentPlayer.health = remoteState.health;
+        const healthBar = isHost ? '#player2Health' : '#playerHealth';
+        gsap.to(healthBar, {width: opponentPlayer.health + '%'});
+        
+        if (remoteState.health <= 0 && !opponentPlayer.dead) {
+            opponentPlayer.switchSprite('death');
+            opponentPlayer.dead = true;
+        }
+    }
 }
+
+// This function is no longer needed as we're using direct state synchronization
 
 // Handle data for wallet mode with move validation
 function handleWalletGameData(data) {

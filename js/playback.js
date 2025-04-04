@@ -125,36 +125,37 @@ class GamePlayback {
   // Apply a move to the appropriate player
   applyMove(move) {
     // Determine which player this move belongs to
-    // We'll use sequence numbers: odd for player1, even for player2
-    const isPlayer1Move = move.sequence % 2 === 1;
+    const isPlayer1Move = move.isHost;
     const player = isPlayer1Move ? this.player1 : this.player2;
-    const keys = move.keys;
+    const state = move.state;
     
-    // Reset velocity
-    player.velocity.x = 0;
+    // Apply state directly
+    player.position.x = state.position.x;
+    player.position.y = state.position.y;
+    player.velocity.x = state.velocity.x;
+    player.velocity.y = state.velocity.y;
+    player.facingLeft = state.facingLeft;
     
-    // Movement
-    if (keys.includes('a') || keys.includes('ArrowLeft')) {
-      player.velocity.x = -5;
-      player.switchSprite('run');
-      player.facingLeft = isPlayer1Move; // Player 1 faces left when moving left
-    } else if (keys.includes('d') || keys.includes('ArrowRight')) {
-      player.velocity.x = 5;
-      player.switchSprite('run');
-      player.facingLeft = !isPlayer1Move; // Player 1 faces right when moving right
-    } else {
-      player.switchSprite('idle');
+    // Update sprite
+    if (state.currentSprite) {
+      player.switchSprite(state.currentSprite);
     }
     
-    // Jumping
-    if ((keys.includes('w') || keys.includes('ArrowUp')) && player.velocity.y === 0) {
-      player.velocity.y = -20;
-      player.switchSprite('jump');
-    }
-    
-    // Attacking
-    if ((keys.includes(' ') || keys.includes('ArrowDown')) && !player.isAttacking) {
+    // Handle attacking
+    if (state.isAttacking && !player.isAttacking) {
       player.attack();
+    }
+    
+    // Handle health
+    if (state.health !== undefined && state.health !== player.health) {
+      player.health = state.health;
+      const healthBar = isPlayer1Move ? '#playerHealth' : '#player2Health';
+      gsap.to(healthBar, {width: player.health + '%'});
+      
+      if (state.health <= 0 && !player.dead) {
+        player.switchSprite('death');
+        player.dead = true;
+      }
     }
     
     // Update position

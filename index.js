@@ -272,67 +272,7 @@ function updatePlayerState(keys) {
     controlledPlayer.velocity.y += gravity;
   }
 
-  // Collision detection - check for both players
-  // This ensures both machines detect the same collisions
-  if (rectangularCollision({rectangle1: player, rectangle2: player2}) &&
-      player.isAttacking && player.framesCurrent === 4 && !player2.dead) {
-    // Record the hit in our move history
-    if (isHost) {
-      // Add a special "hit" move to the history
-      const hitMove = {
-        keys: ['hit-p2'],
-        timestamp: Date.now(),
-        sequence: ++gameState.moveSync.lastSequence,
-        isHost: true,
-        hitData: {
-          attacker: 'player1',
-          defender: 'player2',
-          damage: 20
-        }
-      };
-      gameState.moveSync.moveHistory.push(hitMove);
-    }
-    
-    player2.takeHit();
-    player.isAttacking = false;
-    gsap.to('#player2Health', {width: player2.health + '%'});
-    
-    // Check for game over
-    if (player2.health <= 0) {
-      player2.dead = true;
-      determineWinner({ player, player2, timerId: null });
-    }
-  }
-
-  if (rectangularCollision({rectangle1: player2, rectangle2: player}) &&
-      player2.isAttacking && player2.framesCurrent === 2 && !player.dead) {
-    // Record the hit in our move history
-    if (!isHost) {
-      // Add a special "hit" move to the history
-      const hitMove = {
-        keys: ['hit-p1'],
-        timestamp: Date.now(),
-        sequence: ++gameState.moveSync.lastSequence,
-        isHost: false,
-        hitData: {
-          attacker: 'player2',
-          defender: 'player1',
-          damage: 20
-        }
-      };
-      gameState.moveSync.moveHistory.push(hitMove);
-    }
-    
-    player.takeHit();
-    player2.isAttacking = false;
-    gsap.to('#playerHealth', {width: player.health + '%'});
-    
-    // Check for game over
-    if (player.health <= 0) {
-      player.dead = true;
-      determineWinner({ player, player2, timerId: null });
-    }
-  }
+  // Collision detection is now handled in the processGameState function
 
   // Reset attack states
   if (player.isAttacking && player.framesCurrent === 4) {
@@ -539,29 +479,48 @@ function sendPlayerState() {
   sendGameMove(currentKeys);
 }
 
-// Process all unprocessed moves for the current frame
-function processGameMoves() {
+// Check for collisions and update game state
+function processGameState() {
   if (!gameState.gameStarted || gameState.gameEnded) return;
   
-  // Get all moves that should be applied in the current frame
-  const moves = gameState.moveSync.getUnprocessedMoves();
+  // Check for collisions between players
+  checkCollisions();
   
-  if (moves.length > 0) {
-    console.log(`Processing ${moves.length} moves for frame ${gameState.moveSync.getCurrentFrame()}`);
+  // Update game timer based on elapsed time
+  updateGameTimer();
+}
+
+// Check for collisions between players
+function checkCollisions() {
+  // Only check if both players are active
+  if (player.dead || player2.dead) return;
+  
+  // Check if player1 is attacking player2
+  if (rectangularCollision({rectangle1: player, rectangle2: player2}) &&
+      player.isAttacking && player.framesCurrent === 4) {
+    player2.takeHit();
+    player.isAttacking = false;
+    gsap.to('#player2Health', {width: player2.health + '%'});
     
-    // Apply each move in sequence
-    moves.forEach(move => {
-      // Apply move to the appropriate player
-      if ((move.isHost && isHost) || (!move.isHost && !isHost)) {
-        // This is our own move, already applied
-      } else {
-        // This is opponent's move
-        applyMoveToOpponent(move);
-      }
-    });
+    // Check for game over
+    if (player2.health <= 0) {
+      player2.dead = true;
+      determineWinner({ player, player2, timerId: null });
+    }
+  }
+
+  // Check if player2 is attacking player1
+  if (rectangularCollision({rectangle1: player2, rectangle2: player}) &&
+      player2.isAttacking && player2.framesCurrent === 2) {
+    player.takeHit();
+    player2.isAttacking = false;
+    gsap.to('#playerHealth', {width: player.health + '%'});
     
-    // Update game timer based on elapsed time
-    updateGameTimer();
+    // Check for game over
+    if (player.health <= 0) {
+      player.dead = true;
+      determineWinner({ player, player2, timerId: null });
+    }
   }
 }
 
