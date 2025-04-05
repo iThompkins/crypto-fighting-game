@@ -66,8 +66,7 @@ window.addEventListener('load', () => {
 
 // Mock function to fetch games from a hypothetical contract/backend
 async function fetchGamesFromContract() {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Removed simulated network delay
 
     // Mock data - replace with actual contract interaction
     // Needs the current player's ephemeral address to filter games
@@ -162,8 +161,8 @@ async function displayGameList() {
 
 // Mock function to simulate creating a game on the contract
 async function createGameOnContract() {
-    // Simulate network delay & contract interaction
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Removed simulated network delay & contract interaction
+
     // Requires opponent's ephemeral address - how do we get this?
     // For now, let's assume we prompt the user or have a placeholder
     const opponentAddress = prompt("Enter opponent's ephemeral wallet address:", "0xOpponentPlaceholder...");
@@ -208,8 +207,8 @@ async function handleCreateGame() {
 
 // Mock function to simulate joining a game on the contract
 async function joinGameOnContract(gameId) {
-    // Simulate network delay & contract interaction
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Removed simulated network delay & contract interaction
+
     console.log(`Mock Contract: Player ${window.ephemeralWallet.address} joining game ${gameId}`);
     // Assume contract verifies the player is the challenged one and accepts the join
     return true; // Indicate success
