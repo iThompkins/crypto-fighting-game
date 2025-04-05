@@ -54,7 +54,7 @@ async function selectMode(mode) {
 
       // Hide loading overlay after successful connection
       if (loadingOverlay) loadingOverlay.style.display = 'none';
-      }
+      // Removed extra closing brace that was here
       window.ephemeralWallet = wallet; // Store wallet globally
       console.log("Ephemeral Wallet Ready:", wallet.address);
 
