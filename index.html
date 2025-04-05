@@ -250,7 +250,8 @@
 </head>
 <body>
   <div id="game-container">
-    <div id="auth-container" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; text-align: center;">
+    <!-- Adjusted auth-container for scrolling -->
+    <div id="auth-container" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; text-align: center; max-height: 90vh; overflow-y: auto; background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2);">
     <div id="mode-select" style="margin-bottom: 20px;">
       <button onclick="selectMode('freeplay')" style="padding: 10px; font-family: 'Press Start 2P', cursive; min-width: 200px; margin: 5px;">
         Free Play
