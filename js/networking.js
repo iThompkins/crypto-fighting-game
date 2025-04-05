@@ -306,6 +306,26 @@ async function handleJoinGame(gameId) {
     }
 }
 
+// New handler for the "Start Listening" button
+async function handleStartListeningHost(gameId) {
+    console.log(`Host starting to listen for game: ${gameId}`);
+    isHost = true; // Ensure host status is set
+    gameState.currentGameId = gameId; // Store game ID
+    try {
+        await initializePeerWithGameId(gameId, true); // Initialize PeerJS and listen
+        // Update UI status
+        const connectionStatusElement = document.querySelector(`#wallet-connect #connection-status`);
+         if (connectionStatusElement) {
+             connectionStatusElement.innerHTML = `Listening for opponent... <br>Game ID: <strong>${gameId}</strong>`;
+             connectionStatusElement.style.color = '#eee';
+         }
+    } catch (error) {
+        console.error("Error starting listener:", error);
+        alert(`Failed to start listening: ${error.message}`);
+    }
+}
+
+// Removed handleJoinGameById as we removed the UI for it
 
 // Derives the PeerJS ID based on game ID and host status
 function derivePeerId(gameId, isHostPlayer) {
