@@ -555,11 +555,8 @@ function connectToPeerFreeplay() {
 
 // --- Common Networking Functions ---
 
-// Error handling
-    peer.on('error', (err) => {
-        console.error('PeerJS error:', err);
-        let errorMessage = 'Connection error';
-    
+// Note: PeerJS error/disconnect handlers are now inside initializePeerWithGameId and initializePeerForFreeplay
+
 } // End of initializePeerForFreeplay (or potentially initializePeerWithGameId if misplaced)
 // Removed old peer.on('error') and peer.on('disconnected') handlers previously here.
 
