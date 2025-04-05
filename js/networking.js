@@ -6,17 +6,21 @@ window.ephemeralWallet = null; // Store the ephemeral wallet globally
 
 // --- Mock Contract Data ---
 const MOCK_OPPONENT_ADDRESS = "0xb41188d9f36d4CF970605722d8071094e681eFFb".toLowerCase();
-// Predefined games - Use placeholders for local player address initially
-let mockContractGames = [
-    // Game created by someone else, challenging the fixed opponent (won't match initially)
-    { gameId: "mockGame_abc111", creator: "0xOtherCreator1...", challenged: MOCK_OPPONENT_ADDRESS, status: 'pending' },
-    // Game created by the fixed opponent, challenging someone else (won't match initially)
-    { gameId: "mockGame_def222", creator: MOCK_OPPONENT_ADDRESS, challenged: "0xOtherChallenged...", status: 'pending' },
-    // Game potentially created by local player (placeholder), challenging fixed opponent
-    { gameId: "mockGame_ghi333", creator: "LOCAL_PLAYER_PLACEHOLDER", challenged: MOCK_OPPONENT_ADDRESS, status: 'waiting' },
-    // Game created by fixed opponent, challenging local player (placeholder)
-    { gameId: "mockGame_jkl444", creator: MOCK_OPPONENT_ADDRESS, challenged: "LOCAL_PLAYER_PLACEHOLDER", status: 'pending' },
-];
+const MOCK_GAME_ID = "mockGame_PlayerVsFixedOpponent"; // Use a fixed ID for the single game
+
+// Function to generate the single mock game data
+function getMockGameData(playerAddress) {
+    if (!playerAddress) return null;
+    return {
+        gameId: MOCK_GAME_ID,
+        creator: playerAddress.toLowerCase(), // Current player is always creator
+        challenged: MOCK_OPPONENT_ADDRESS,    // Fixed opponent
+        status: 'ready' // Simplified status, always ready to join/rejoin
+    };
+}
+
+// In-memory store (less relevant now, but keep for structure)
+let mockContractGames = []; // Will hold the dynamically generated game if needed
 
 async function selectMode(mode) {
   gameMode = mode;
@@ -78,23 +82,28 @@ window.addEventListener('load', () => {
 
 // --- Wallet Mode Specific Functions ---
 
-// Mock function to fetch games relevant to the connected wallet from our store
+// Mock function to fetch the single predefined game if the player is the creator
 async function fetchGamesFromContract() {
     if (!window.ephemeralWallet) return [];
     const playerAddress = window.ephemeralWallet.address.toLowerCase();
 
-    console.log("Filtering mockContractGames for address:", playerAddress);
-    console.log("Current mockContractGames state:", mockContractGames);
+    const mockGame = getMockGameData(playerAddress);
 
-    // Filter games, replacing placeholder with actual address for comparison
-    const relevantGames = mockContractGames.filter(game => {
-        const creator = game.creator === "LOCAL_PLAYER_PLACEHOLDER" ? playerAddress : game.creator.toLowerCase();
-        const challenged = game.challenged === "LOCAL_PLAYER_PLACEHOLDER" ? playerAddress : game.challenged.toLowerCase();
-        return creator === playerAddress || challenged === playerAddress;
-    });
-
-    console.log("Relevant mock games found:", relevantGames);
-    return relevantGames;
+    // In this simplified mock, only the creator sees the game initially
+    // (The opponent would need to know the gameId externally)
+    if (mockGame && mockGame.creator === playerAddress) {
+        console.log("Returning mock game for creator:", mockGame);
+        // Update the store (optional, useful if other functions reference it)
+        mockContractGames = [mockGame];
+        return [mockGame];
+    } else {
+        // If the current player isn't the creator (e.g., the fixed opponent address),
+        // they wouldn't see this game listed via this mock fetch.
+        // They would need the gameId provided to them to join.
+        console.log("Current player is not the designated creator of the mock game.");
+        mockContractGames = []; // Clear store if not creator
+        return [];
+    }
 }
 
 // Updates the UI with the fetched game list
@@ -135,30 +144,15 @@ async function displayGameList() {
             // Determine roles based on potentially placeholder addresses
             const gameCreator = game.creator === "LOCAL_PLAYER_PLACEHOLDER" ? playerAddress : game.creator.toLowerCase();
             const gameChallenged = game.challenged === "LOCAL_PLAYER_PLACEHOLDER" ? playerAddress : game.challenged.toLowerCase();
-            const isCreator = gameCreator === playerAddress;
-            const opponentAddress = isCreator ? gameChallenged : gameCreator;
+            const isCreator = gameCreator === playerAddress; // Should always be true now for listed game
+            const opponentAddress = gameChallenged; // Opponent is always the fixed address
 
-            let actionButtonHtml = '';
-            // Adjust button logic based on simplified mock flow
-            if (!isCreator && game.status === 'pending') {
-                // Challenged by opponent, show "Join"
-                actionButtonHtml = `<button onclick="handleJoinGame('${game.gameId}')" style="padding: 5px 8px; font-size: 10px;">Join</button>`;
-            } else if (isCreator && game.status === 'waiting') {
-                // Created by us, show "Start Listening"
-                actionButtonHtml = `<button onclick="handleStartListeningHost('${game.gameId}')" style="padding: 5px 8px; font-size: 10px;">Start Listening</button>`;
-            } else if (game.status === 'active') {
-                // Game is active - potentially add a "Rejoin" button later
-                 actionButtonHtml = `<span style="font-size: 10px; color: #4caf50;">Active</span>`;
-                 // Could add rejoin logic here:
-                 // const rejoinFn = isCreator ? 'handleStartListeningHost' : 'handleJoinGame';
-                 // actionButtonHtml += `<button onclick="${rejoinFn}('${game.gameId}')" style="padding: 5px 8px; font-size: 10px; margin-left: 5px;">Rejoin</button>`;
-            } else {
-                 actionButtonHtml = `<span style="font-size: 10px; color: #aaa;">${game.status}</span>`;
-            }
+            // Always show a Join button for the mock game
+            let actionButtonHtml = `<button onclick="handleJoinGame('${game.gameId}')" style="padding: 5px 8px; font-size: 10px;">Join / Rejoin</button>`;
 
             gameElement.innerHTML = `
                 <span style="font-size: 12px;">
-                  ID: ${game.gameId.substring(0, 8)}... vs ${opponentAddress.substring(0, 6)}...
+                  Game vs ${opponentAddress.substring(0, 6)}... (ID: ${game.gameId.substring(0, 8)}...)
                 </span>
                 ${actionButtonHtml}
             `;
@@ -173,73 +167,10 @@ async function displayGameList() {
     }
 }
 
-// Mock function to simulate creating a game against the fixed opponent
-async function createGameOnContract() {
-    if (!window.ephemeralWallet) throw new Error("Local wallet not found.");
-    const creatorAddress = window.ephemeralWallet.address;
-
-    // Use the fixed opponent address
-    const opponentAddress = MOCK_OPPONENT_ADDRESS;
-
-    // Generate a mock game ID
-    const gameId = `mockGame_${ethers.utils.hexlify(ethers.utils.randomBytes(6))}`;
-
-    const newGame = {
-        gameId: gameId,
-        creator: creatorAddress,
-        challenged: opponentAddress,
-        status: 'waiting' // Initial status
-    };
-
-    // Add to our mock store
-    mockContractGames.push(newGame);
-
-    console.log(`Mock Contract: Added game ${gameId} to store. Creator: ${creatorAddress}, Challenged: ${opponentAddress}`);
-    console.log("Current mockContractGames:", mockContractGames);
-    return gameId; // Return the generated game ID
-}
-
-// Handles the "Create New Game" button click
-async function handleCreateGame() {
-    if (!window.ephemeralWallet) {
-        alert("Wallet not connected.");
-        return;
-    }
-    const createButton = document.querySelector('#wallet-connect button[onclick="handleCreateGame()"]');
-    const originalText = createButton.textContent;
-    createButton.disabled = true;
-    createButton.textContent = 'Creating...';
-
-    try {
-        const gameId = await createGameOnContract(); // Simulates contract call
-        gameState.currentGameId = gameId; // Store game ID globally
-        isHost = true; // The creator is the host
-
-        // Initialize PeerJS with the derived ID and start listening
-        await initializePeerWithGameId(gameId, true); // Start listening as host
-
-        // Update UI - Show the Game ID to be shared
-        const connectionStatusElement = document.querySelector(`#wallet-connect #connection-status`);
-        if (connectionStatusElement) {
-             connectionStatusElement.innerHTML = `Game Created! Waiting for opponent... <br>Share this Game ID: <strong style="cursor: pointer; text-decoration: underline;" onclick="navigator.clipboard.writeText('${gameId}')" title="Click to copy">${gameId}</strong>`;
-             connectionStatusElement.style.color = '#eee';
-        }
-
-        // Optionally refresh list (might show the new game now)
-         await displayGameList();
-
-
-    } catch (error) {
-        console.error("Error creating game:", error);
-        alert(`Failed to create game: ${error.message}`);
-    } finally {
-        createButton.disabled = false;
-        createButton.textContent = originalText;
-    }
-}
+// Removed createGameOnContract and handleCreateGame functions
 
 // Mock function to simulate joining a game in our store
-async function joinGameOnContract(gameId) {
+async function joinGameOnContract(gameId) { // This function is now less relevant but kept for structure
     if (!window.ephemeralWallet) throw new Error("Local wallet not found.");
     const joinerAddress = window.ephemeralWallet.address.toLowerCase();
 
@@ -279,51 +210,58 @@ async function handleJoinGame(gameId) {
     }
     // Find the button clicked to disable it (optional, good UX)
     const joinButton = event.target;
-    if(joinButton) joinButton.disabled = true;
-
+    if(joinButton) {
+        joinButton.textContent = 'Joining...';
+        joinButton.disabled = true;
+    }
 
     try {
-        const joined = await joinGameOnContract(gameId); // Simulates contract call
-        if (!joined) {
-            throw new Error("Failed to join game via contract.");
+        // 1. Get the game data (should be the single mock game)
+        const playerAddress = window.ephemeralWallet.address.toLowerCase();
+        const gameData = getMockGameData(playerAddress); // Use the generator
+
+        if (!gameData || gameData.gameId !== gameId) {
+            throw new Error(`Mock game data not found or ID mismatch for ${gameId}`);
         }
 
-        gameState.currentGameId = gameId; // Store game ID globally
-        isHost = false; // The joiner is the client
+        // 2. Determine if the current player is the host (creator)
+        isHost = (gameData.creator === playerAddress);
+        console.log(`Joining game ${gameId}. Role: ${isHost ? 'Host' : 'Client'}`);
 
-        // Initialize PeerJS with the derived ID
-        await initializePeerWithGameId(gameId, false);
+        // 3. Store game ID
+        gameState.currentGameId = gameId;
 
-        // Attempt to connect to the host
-        await connectToHostPeer(gameId);
+        // 4. Initialize PeerJS with the correct role
+        await initializePeerWithGameId(gameId, isHost);
 
-        // UI should update automatically when connection succeeds via handleConnection
+        // 5. If client, attempt to connect to the host
+        if (!isHost) {
+            await connectToHostPeer(gameId);
+        } else {
+            // If host, update status to indicate listening (already done in initializePeer)
+             const connectionStatusElement = document.querySelector(`#wallet-connect #connection-status`);
+             if (connectionStatusElement) {
+                 connectionStatusElement.innerHTML = `Listening for opponent... <br>Game ID: <strong>${gameId}</strong>`;
+                 connectionStatusElement.style.color = '#eee';
+             }
+        }
+
+        // UI updates happen within initializePeerWithGameId and connectToHostPeer
+        // or when the connection is established via handleConnection.
 
     } catch (error) {
+        // Re-enable button on error
+        if(joinButton) {
+             joinButton.textContent = 'Join / Rejoin';
+             joinButton.disabled = false;
+        }
         console.error("Error joining game:", error);
         alert(`Failed to join game: ${error.message}`);
          if(joinButton) joinButton.disabled = false; // Re-enable button on error
     }
 }
 
-// New handler for the "Start Listening" button
-async function handleStartListeningHost(gameId) {
-    console.log(`Host starting to listen for game: ${gameId}`);
-    isHost = true; // Ensure host status is set
-    gameState.currentGameId = gameId; // Store game ID
-    try {
-        await initializePeerWithGameId(gameId, true); // Initialize PeerJS and listen
-        // Update UI status
-        const connectionStatusElement = document.querySelector(`#wallet-connect #connection-status`);
-         if (connectionStatusElement) {
-             connectionStatusElement.innerHTML = `Listening for opponent... <br>Game ID: <strong>${gameId}</strong>`;
-             connectionStatusElement.style.color = '#eee';
-         }
-    } catch (error) {
-        console.error("Error starting listener:", error);
-        alert(`Failed to start listening: ${error.message}`);
-    }
-}
+// Removed handleStartListeningHost function
 
 // Removed handleJoinGameById as we removed the UI for it
 
