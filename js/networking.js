@@ -151,6 +151,7 @@ async function displayGameList() {
             `;
             container.appendChild(gameElement);
         });
+      } // <-- Add missing closing brace for the 'else' block
 
     } catch (error) {
         console.error("Error fetching games:", error);
