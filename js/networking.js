@@ -94,32 +94,28 @@ async function displayGameList() {
     const statusElement = document.getElementById('game-list-status');
     if (!container || !statusElement) return;
 
-    // Ensure status element is visible and set initial text
-    statusElement.style.display = 'block';
+    // 1. Ensure status element is visible and set initial text
     statusElement.textContent = 'Fetching games...';
-    // Clear only previous game items, not the status message itself initially
-    // We'll clear fully later only if games are found.
-    const existingGameItems = container.querySelectorAll('div'); // Find only game divs
-    existingGameItems.forEach(item => container.removeChild(item));
+    statusElement.style.display = 'block'; // Make sure it's visible
 
+    // 2. Clear only previous game list items (divs within the container)
+    const existingGameItems = container.querySelectorAll('div');
+    existingGameItems.forEach(item => container.removeChild(item));
 
     try {
         const games = await fetchGamesFromContract();
 
         if (games.length === 0) {
+            // 3a. No games found: Update status text
             statusElement.textContent = 'No active games found.';
-            // Ensure container is otherwise empty
-            const otherItems = container.querySelectorAll('div');
-            otherItems.forEach(item => container.removeChild(item));
-            return; // Keep the "No active games" message visible
-        }
+            statusElement.style.display = 'block'; // Ensure it remains visible
+        } else {
+            // 3b. Games found: Hide status element and add game items
+            statusElement.style.display = 'none'; // Hide the status message
 
-        // Games found - hide status and clear container before adding games
-        statusElement.style.display = 'none';
-        container.innerHTML = ''; // Clear container completely now
-
-        games.forEach(game => {
-            const gameElement = document.createElement('div');
+            games.forEach(game => {
+                const gameElement = document.createElement('div');
+                // Rest of the game element creation remains the same...
             // Rest of the game element creation remains the same...
             gameElement.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
             gameElement.style.padding = '8px 0';
