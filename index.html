@@ -261,6 +261,12 @@
         Connect Wallet
       </button>
     </div>
+    <!-- Wallet Loading Overlay -->
+    <div id="wallet-loading-overlay" style="display: none; color: white; padding: 20px; text-align: center;">
+        <div style="width: 30px; height: 30px; margin: 0 auto 15px auto; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <p>Securing wallet connection...</p>
+        <p style="font-size: 10px;">(This may take a few seconds)</p>
+    </div>
     <!-- Wallet connect section - Shows game list and creation options -->
     <div id="wallet-connect" style="display: none; color: white; text-align: left; max-width: 500px; margin: 0 auto;">
       <p>Wallet: <span id="wallet-address-display"></span></p>

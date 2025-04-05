@@ -39,13 +39,21 @@ let mockContractGames = []; // Will hold the dynamically generated game if neede
 async function selectMode(mode) {
   gameMode = mode;
   document.getElementById('mode-select').style.display = 'none';
+  const loadingOverlay = document.getElementById('wallet-loading-overlay');
 
   if (mode === 'wallet') {
+    // Show loading overlay before starting wallet operations
+    if (loadingOverlay) loadingOverlay.style.display = 'block';
+
     try {
       // 1. Connect Wallet immediately
       const wallet = await connectWallet(); // This handles generation/decryption
       if (!wallet) {
         throw new Error('Wallet connection failed or was cancelled.');
+      }
+
+      // Hide loading overlay after successful connection
+      if (loadingOverlay) loadingOverlay.style.display = 'none';
       }
       window.ephemeralWallet = wallet; // Store wallet globally
       console.log("Ephemeral Wallet Ready:", wallet.address);
@@ -68,6 +76,8 @@ async function selectMode(mode) {
     } catch (error) {
         console.error('Wallet mode initialization error:', error);
         alert(`Failed to initialize wallet mode: ${error.message}. Please try again.`);
+        // Hide loading overlay on error
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
         // Revert to mode selection on error
         document.getElementById('mode-select').style.display = 'block';
         document.getElementById('wallet-connect').style.display = 'none';
