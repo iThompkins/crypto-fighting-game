@@ -4,6 +4,20 @@ let isHost = false;
 let gameMode = null;
 window.ephemeralWallet = null; // Store the ephemeral wallet globally
 
+// --- Mock Contract Data ---
+const MOCK_OPPONENT_ADDRESS = "0xb41188d9f36d4CF970605722d8071094e681eFFb".toLowerCase();
+// Predefined games - Use placeholders for local player address initially
+let mockContractGames = [
+    // Game created by someone else, challenging the fixed opponent (won't match initially)
+    { gameId: "mockGame_abc111", creator: "0xOtherCreator1...", challenged: MOCK_OPPONENT_ADDRESS, status: 'pending' },
+    // Game created by the fixed opponent, challenging someone else (won't match initially)
+    { gameId: "mockGame_def222", creator: MOCK_OPPONENT_ADDRESS, challenged: "0xOtherChallenged...", status: 'pending' },
+    // Game potentially created by local player (placeholder), challenging fixed opponent
+    { gameId: "mockGame_ghi333", creator: "LOCAL_PLAYER_PLACEHOLDER", challenged: MOCK_OPPONENT_ADDRESS, status: 'waiting' },
+    // Game created by fixed opponent, challenging local player (placeholder)
+    { gameId: "mockGame_jkl444", creator: MOCK_OPPONENT_ADDRESS, challenged: "LOCAL_PLAYER_PLACEHOLDER", status: 'pending' },
+];
+
 async function selectMode(mode) {
   gameMode = mode;
   document.getElementById('mode-select').style.display = 'none';
@@ -64,27 +78,23 @@ window.addEventListener('load', () => {
 
 // --- Wallet Mode Specific Functions ---
 
-// Mock function to fetch games from a hypothetical contract/backend
+// Mock function to fetch games relevant to the connected wallet from our store
 async function fetchGamesFromContract() {
-    // Removed simulated network delay
-
-    // Mock data - replace with actual contract interaction
-    // Needs the current player's ephemeral address to filter games
     if (!window.ephemeralWallet) return [];
-
     const playerAddress = window.ephemeralWallet.address.toLowerCase();
 
-    // Example games structure: { gameId: string, creator: address, challenged: address, status: 'pending' | 'active' | 'waiting' }
-    const mockGames = [
-        { gameId: '0xabc123gamehash', creator: playerAddress, challenged: '0xOpponent1...', status: 'waiting' }, // Created by us, waiting
-        { gameId: '0xdef456gamehash', creator: '0xOpponent2...', challenged: playerAddress, status: 'pending' }, // Challenged by someone else
-        { gameId: '0xghi789gamehash', creator: playerAddress, challenged: '0xOpponent3...', status: 'active' }, // Already active (maybe show differently?)
-    ];
+    console.log("Filtering mockContractGames for address:", playerAddress);
+    console.log("Current mockContractGames state:", mockContractGames);
 
-    // Filter games where the current player is either the creator or the challenged player
-    return mockGames.filter(game =>
-        game.creator.toLowerCase() === playerAddress || game.challenged.toLowerCase() === playerAddress
-    );
+    // Filter games, replacing placeholder with actual address for comparison
+    const relevantGames = mockContractGames.filter(game => {
+        const creator = game.creator === "LOCAL_PLAYER_PLACEHOLDER" ? playerAddress : game.creator.toLowerCase();
+        const challenged = game.challenged === "LOCAL_PLAYER_PLACEHOLDER" ? playerAddress : game.challenged.toLowerCase();
+        return creator === playerAddress || challenged === playerAddress;
+    });
+
+    console.log("Relevant mock games found:", relevantGames);
+    return relevantGames;
 }
 
 // Updates the UI with the fetched game list
@@ -163,19 +173,30 @@ async function displayGameList() {
     }
 }
 
-// Mock function to simulate creating a game on the contract
+// Mock function to simulate creating a game against the fixed opponent
 async function createGameOnContract() {
-    // Removed simulated network delay & contract interaction
+    if (!window.ephemeralWallet) throw new Error("Local wallet not found.");
+    const creatorAddress = window.ephemeralWallet.address;
 
-    // Requires opponent's ephemeral address - how do we get this?
-    // For now, let's assume we prompt the user or have a placeholder
-    const opponentAddress = prompt("Enter opponent's ephemeral wallet address:", "0xOpponentPlaceholder...");
-    if (!opponentAddress) throw new Error("Opponent address required.");
+    // Use the fixed opponent address
+    const opponentAddress = MOCK_OPPONENT_ADDRESS;
 
-    // Generate a mock game ID (replace with actual contract call result)
-    const gameId = `0x${ethers.utils.hexlify(ethers.utils.randomBytes(10))}`; // Mock 10-byte game ID
-    console.log(`Mock Contract: Created game ${gameId} for ${window.ephemeralWallet.address} vs ${opponentAddress}`);
-    return gameId;
+    // Generate a mock game ID
+    const gameId = `mockGame_${ethers.utils.hexlify(ethers.utils.randomBytes(6))}`;
+
+    const newGame = {
+        gameId: gameId,
+        creator: creatorAddress,
+        challenged: opponentAddress,
+        status: 'waiting' // Initial status
+    };
+
+    // Add to our mock store
+    mockContractGames.push(newGame);
+
+    console.log(`Mock Contract: Added game ${gameId} to store. Creator: ${creatorAddress}, Challenged: ${opponentAddress}`);
+    console.log("Current mockContractGames:", mockContractGames);
+    return gameId; // Return the generated game ID
 }
 
 // Handles the "Create New Game" button click
