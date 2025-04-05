@@ -114,30 +114,34 @@ async function displayGameList() {
 
             games.forEach(game => {
                 const gameElement = document.createElement('div');
-                // Rest of the game element creation remains the same...
-            // Rest of the game element creation remains the same...
-            gameElement.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                // Apply styles (moved from below)
+                gameElement.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
             gameElement.style.padding = '8px 0';
             gameElement.style.display = 'flex';
             gameElement.style.justifyContent = 'space-between';
             gameElement.style.alignItems = 'center';
 
             const playerAddress = window.ephemeralWallet.address.toLowerCase();
-            const isCreator = game.creator.toLowerCase() === playerAddress;
-            const opponentAddress = isCreator ? game.challenged : game.creator;
+            // Determine roles based on potentially placeholder addresses
+            const gameCreator = game.creator === "LOCAL_PLAYER_PLACEHOLDER" ? playerAddress : game.creator.toLowerCase();
+            const gameChallenged = game.challenged === "LOCAL_PLAYER_PLACEHOLDER" ? playerAddress : game.challenged.toLowerCase();
+            const isCreator = gameCreator === playerAddress;
+            const opponentAddress = isCreator ? gameChallenged : gameCreator;
 
             let actionButtonHtml = '';
-            if (game.status === 'pending' && !isCreator) {
-                // Challenged, needs to join
+            // Adjust button logic based on simplified mock flow
+            if (!isCreator && game.status === 'pending') {
+                // Challenged by opponent, show "Join"
                 actionButtonHtml = `<button onclick="handleJoinGame('${game.gameId}')" style="padding: 5px 8px; font-size: 10px;">Join</button>`;
-            } else if (game.status === 'waiting' && isCreator) {
-                // Created, waiting for opponent
-                actionButtonHtml = `<button disabled style="padding: 5px 8px; font-size: 10px; cursor: not-allowed;">Waiting</button>`;
-                // We should automatically start listening via PeerJS here if not already
-                initializePeerWithGameId(game.gameId, true); // Start listening as host
+            } else if (isCreator && game.status === 'waiting') {
+                // Created by us, show "Start Listening"
+                actionButtonHtml = `<button onclick="handleStartListeningHost('${game.gameId}')" style="padding: 5px 8px; font-size: 10px;">Start Listening</button>`;
             } else if (game.status === 'active') {
-                // Game is active (maybe reconnect?) - For now, just show status
+                // Game is active - potentially add a "Rejoin" button later
                  actionButtonHtml = `<span style="font-size: 10px; color: #4caf50;">Active</span>`;
+                 // Could add rejoin logic here:
+                 // const rejoinFn = isCreator ? 'handleStartListeningHost' : 'handleJoinGame';
+                 // actionButtonHtml += `<button onclick="${rejoinFn}('${game.gameId}')" style="padding: 5px 8px; font-size: 10px; margin-left: 5px;">Rejoin</button>`;
             } else {
                  actionButtonHtml = `<span style="font-size: 10px; color: #aaa;">${game.status}</span>`;
             }
@@ -191,10 +195,18 @@ async function handleCreateGame() {
         isHost = true; // The creator is the host
 
         // Initialize PeerJS with the derived ID and start listening
-        await initializePeerWithGameId(gameId, true);
+        await initializePeerWithGameId(gameId, true); // Start listening as host
 
-        // Update UI - refresh list to show the new "waiting" game
-        await displayGameList();
+        // Update UI - Show the Game ID to be shared
+        const connectionStatusElement = document.querySelector(`#wallet-connect #connection-status`);
+        if (connectionStatusElement) {
+             connectionStatusElement.innerHTML = `Game Created! Waiting for opponent... <br>Share this Game ID: <strong style="cursor: pointer; text-decoration: underline;" onclick="navigator.clipboard.writeText('${gameId}')" title="Click to copy">${gameId}</strong>`;
+             connectionStatusElement.style.color = '#eee';
+        }
+
+        // Optionally refresh list (might show the new game now)
+         await displayGameList();
+
 
     } catch (error) {
         console.error("Error creating game:", error);
@@ -205,12 +217,36 @@ async function handleCreateGame() {
     }
 }
 
-// Mock function to simulate joining a game on the contract
+// Mock function to simulate joining a game in our store
 async function joinGameOnContract(gameId) {
-    // Removed simulated network delay & contract interaction
+    if (!window.ephemeralWallet) throw new Error("Local wallet not found.");
+    const joinerAddress = window.ephemeralWallet.address.toLowerCase();
 
-    console.log(`Mock Contract: Player ${window.ephemeralWallet.address} joining game ${gameId}`);
-    // Assume contract verifies the player is the challenged one and accepts the join
+    const gameIndex = mockContractGames.findIndex(g => g.gameId === gameId);
+
+    if (gameIndex === -1) {
+        console.error(`Mock Contract: Game ${gameId} not found in store.`);
+        return false; // Game doesn't exist
+    }
+
+    const game = mockContractGames[gameIndex];
+
+    // Optional: Check if the joiner is the challenged player (or allow anyone in mock)
+    // const gameChallenged = game.challenged === "LOCAL_PLAYER_PLACEHOLDER" ? joinerAddress : game.challenged.toLowerCase();
+    // if (gameChallenged !== joinerAddress) {
+    //     console.error(`Mock Contract: Player ${joinerAddress} is not challenged for game ${gameId}.`);
+    //     return false;
+    // }
+
+    if (game.status !== 'waiting' && game.status !== 'pending') {
+        console.warn(`Mock Contract: Game ${gameId} is not in 'waiting' or 'pending' status (current: ${game.status}). Allowing join anyway for testing.`);
+        // return false; // Or strictly prevent joining non-waiting/pending games
+    }
+
+    // Update game status in the mock store
+    mockContractGames[gameIndex].status = 'active';
+    console.log(`Mock Contract: Player ${joinerAddress} joined game ${gameId}. Status updated to active.`);
+    console.log("Current mockContractGames:", mockContractGames);
     return true; // Indicate success
 }
 
