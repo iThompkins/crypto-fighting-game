@@ -8,16 +8,30 @@ window.ephemeralWallet = null; // Store the ephemeral wallet globally
 const MOCK_OPPONENT_ADDRESS = "0xb41188d9f36d4CF970605722d8071094e681eFFb".toLowerCase();
 const MOCK_GAME_ID = "mockGame_PlayerVsFixedOpponent"; // Use a fixed ID for the single game
 
-// Function to generate the single mock game data
-function getMockGameData(playerAddress) {
+// Function to generate the single mock game data, assuming playerAddress is the creator
+function getCreatorMockGameData(playerAddress) {
     if (!playerAddress) return null;
     return {
         gameId: MOCK_GAME_ID,
-        creator: playerAddress.toLowerCase(), // Current player is always creator
-        challenged: MOCK_OPPONENT_ADDRESS,    // Fixed opponent
-        status: 'ready' // Simplified status, always ready to join/rejoin
+        creator: playerAddress.toLowerCase(),
+        challenged: MOCK_OPPONENT_ADDRESS,
+        status: 'ready' // Simplified status
     };
 }
+
+// Function to generate the game data if playerAddress is the challenged one
+function getChallengedMockGameData(playerAddress) {
+     if (!playerAddress || playerAddress.toLowerCase() !== MOCK_OPPONENT_ADDRESS) return null;
+     // Need to know the creator's address - how? For mock, let's assume a fixed creator
+     const MOCK_CREATOR_ADDRESS = "0xMockCreatorAddressPlaceholder...".toLowerCase(); // Replace if needed
+     return {
+        gameId: MOCK_GAME_ID,
+        creator: MOCK_CREATOR_ADDRESS,
+        challenged: playerAddress.toLowerCase(),
+        status: 'ready'
+     };
+}
+
 
 // In-memory store (less relevant now, but keep for structure)
 let mockContractGames = []; // Will hold the dynamically generated game if needed
@@ -82,26 +96,27 @@ window.addEventListener('load', () => {
 
 // --- Wallet Mode Specific Functions ---
 
-// Mock function to fetch the single predefined game if the player is the creator
+// Mock function to fetch the single predefined game if the player is involved
 async function fetchGamesFromContract() {
     if (!window.ephemeralWallet) return [];
     const playerAddress = window.ephemeralWallet.address.toLowerCase();
 
-    const mockGame = getMockGameData(playerAddress);
+    // Try generating the game assuming the current player is the creator
+    let mockGame = getCreatorMockGameData(playerAddress);
 
-    // In this simplified mock, only the creator sees the game initially
-    // (The opponent would need to know the gameId externally)
-    if (mockGame && mockGame.creator === playerAddress) {
-        console.log("Returning mock game for creator:", mockGame);
-        // Update the store (optional, useful if other functions reference it)
-        mockContractGames = [mockGame];
+    // If that didn't work (player isn't creator), try generating assuming they are the challenged
+    // Note: This uses a placeholder creator address. In reality, the contract would provide the correct game data.
+    if (!mockGame) {
+        mockGame = getChallengedMockGameData(playerAddress);
+    }
+
+    if (mockGame) {
+        console.log("Returning mock game:", mockGame);
+        mockContractGames = [mockGame]; // Update store
         return [mockGame];
     } else {
-        // If the current player isn't the creator (e.g., the fixed opponent address),
-        // they wouldn't see this game listed via this mock fetch.
-        // They would need the gameId provided to them to join.
-        console.log("Current player is not the designated creator of the mock game.");
-        mockContractGames = []; // Clear store if not creator
+        console.log("Current player is not involved in the mock game.");
+        mockContractGames = []; // Clear store
         return [];
     }
 }
@@ -143,16 +158,17 @@ async function displayGameList() {
             const playerAddress = window.ephemeralWallet.address.toLowerCase();
             // Determine roles based on potentially placeholder addresses
             const gameCreator = game.creator === "LOCAL_PLAYER_PLACEHOLDER" ? playerAddress : game.creator.toLowerCase();
-            const gameChallenged = game.challenged === "LOCAL_PLAYER_PLACEHOLDER" ? playerAddress : game.challenged.toLowerCase();
-            const isCreator = gameCreator === playerAddress; // Should always be true now for listed game
-            const opponentAddress = gameChallenged; // Opponent is always the fixed address
+            const gameChallenged = game.challenged.toLowerCase();
+            const isCreator = gameCreator === playerAddress;
+            // Determine the actual opponent address based on the player's role
+            const opponentAddress = isCreator ? gameChallenged : gameCreator;
 
             // Always show a Join button for the mock game
             let actionButtonHtml = `<button onclick="handleJoinGame('${game.gameId}')" style="padding: 5px 8px; font-size: 10px;">Join / Rejoin</button>`;
 
             gameElement.innerHTML = `
                 <span style="font-size: 12px;">
-                  Game vs ${opponentAddress.substring(0, 6)}... (ID: ${game.gameId.substring(0, 8)}...)
+                  Game vs ${opponentAddress.substring(0, 6)}... (ID: ${game.gameId})
                 </span>
                 ${actionButtonHtml}
             `;
@@ -211,45 +227,77 @@ async function handleJoinGame(gameId) {
     // Find the button clicked to disable it (optional, good UX)
     const joinButton = event.target;
     if(joinButton) {
-        joinButton.textContent = 'Joining...';
+        joinButton.textContent = 'Initializing...';
         joinButton.disabled = true;
     }
 
     try {
-        // 1. Get the game data (should be the single mock game)
+        // 1. Get player address
+        if (!window.ephemeralWallet) throw new Error("Wallet not connected.");
         const playerAddress = window.ephemeralWallet.address.toLowerCase();
-        const gameData = getMockGameData(playerAddress); // Use the generator
+
+        // 2. Get the specific game data (using the fixed ID)
+        // We need to know who the creator is for this game ID.
+        // In a real scenario, we'd fetch game details by ID.
+        // For mock, assume getCreatorMockGameData gives the canonical game state.
+        const gameData = getCreatorMockGameData(playerAddress) || getChallengedMockGameData(playerAddress); // Get game data based on current player role
 
         if (!gameData || gameData.gameId !== gameId) {
-            throw new Error(`Mock game data not found or ID mismatch for ${gameId}`);
-        }
-
-        // 2. Determine if the current player is the host (creator)
-        isHost = (gameData.creator === playerAddress);
-        console.log(`Joining game ${gameId}. Role: ${isHost ? 'Host' : 'Client'}`);
-
-        // 3. Store game ID
-        gameState.currentGameId = gameId;
-
-        // 4. Initialize PeerJS with the correct role
-        await initializePeerWithGameId(gameId, isHost);
-
-        // 5. If client, attempt to connect to the host
-        if (!isHost) {
-            await connectToHostPeer(gameId);
-        } else {
-            // If host, update status to indicate listening (already done in initializePeer)
-             const connectionStatusElement = document.querySelector(`#wallet-connect #connection-status`);
-             if (connectionStatusElement) {
-                 connectionStatusElement.innerHTML = `Listening for opponent... <br>Game ID: <strong>${gameId}</strong>`;
-                 connectionStatusElement.style.color = '#eee';
+             // If the game isn't found for the current player, maybe they are the opponent?
+             // Let's try fetching assuming the *other* player created it.
+             // This is hacky for mock - real contract fetch is needed.
+             console.warn("Couldn't find game data assuming current player is creator/challenged. Trying opponent perspective.");
+             // We need the creator's address if we are the challenged one.
+             // For mock, we can't easily know this without more info.
+             // Let's stick to the primary mock game definition for now.
+             // Re-fetch using the fixed ID logic.
+             const potentialGame = (mockContractGames.length > 0 && mockContractGames[0].gameId === gameId) ? mockContractGames[0] : null;
+             if (!potentialGame) {
+                 throw new Error(`Mock game data not found for game ID ${gameId}`);
              }
+             // Re-determine roles based on stored/fetched game data
+             const creatorAddress = potentialGame.creator.toLowerCase();
+             const challengedAddress = potentialGame.challenged.toLowerCase();
+             isHost = (playerAddress === creatorAddress);
+
+             if (playerAddress !== creatorAddress && playerAddress !== challengedAddress) {
+                 throw new Error("Current player is not part of this game.");
+             }
+             console.log(`Joining game ${gameId}. Role: ${isHost ? 'Host (Creator)' : 'Client (Challenged)'}`);
+             gameState.currentGameId = gameId; // Store game ID
+
+        } else {
+             // Game data found directly, determine role
+             isHost = (gameData.creator.toLowerCase() === playerAddress);
+             console.log(`Joining game ${gameId}. Role: ${isHost ? 'Host (Creator)' : 'Client (Challenged)'}`);
+             gameState.currentGameId = gameId; // Store game ID
         }
 
-        // UI updates happen within initializePeerWithGameId and connectToHostPeer
-        // or when the connection is established via handleConnection.
+
+        // 3. Initialize PeerJS with player's own address
+        await initializePeerWithAddress(playerAddress);
+
+        // 4. Connect or Wait
+        if (!isHost) {
+            // Player is the challenged client, connect to the creator's address
+            const creatorAddress = mockContractGames.find(g => g.gameId === gameId)?.creator;
+            if (!creatorAddress) throw new Error("Could not determine creator address for connection.");
+            if (joinButton) joinButton.textContent = 'Connecting...';
+            await connectToPeerAddress(creatorAddress);
+        } else {
+            // Player is the creator host, just wait for connection
+            const connectionStatusElement = document.querySelector(`#wallet-connect #connection-status`);
+            if (connectionStatusElement) {
+                connectionStatusElement.innerHTML = `Waiting for opponent...`;
+                connectionStatusElement.style.color = '#eee';
+            }
+             // Re-enable button for host? Or keep disabled until connected?
+             // Let's keep it disabled for now to avoid re-clicking.
+             // if(joinButton) joinButton.disabled = false; // Optional
+        }
 
     } catch (error) {
+        // Re-enable button on error
         // Re-enable button on error
         if(joinButton) {
              joinButton.textContent = 'Join / Rejoin';
@@ -263,58 +311,38 @@ async function handleJoinGame(gameId) {
 
 // Removed handleStartListeningHost function
 
-// Removed handleJoinGameById as we removed the UI for it
+// Removed derivePeerId, initializePeerWithGameId, connectToHostPeer
 
-// Derives the PeerJS ID based on game ID and host status
-function derivePeerId(gameId, isHostPlayer) {
-    // Use first 10 chars of gameId (remove 0x prefix if present) + player index
-    const shortGameId = gameId.startsWith('0x') ? gameId.substring(2, 12) : gameId.substring(0, 10);
-    const playerIndex = isHostPlayer ? '1' : '2';
-    return `crypto-game-${shortGameId}-${playerIndex}`;
-}
+// Initializes PeerJS using the player's ephemeral wallet address
+async function initializePeerWithAddress(playerAddress) {
+    if (!playerAddress) {
+        throw new Error("Player address is required to initialize PeerJS.");
+    }
+    const peerId = playerAddress; // Use the full address as the PeerJS ID
 
-// Initializes PeerJS connection for a specific game
-async function initializePeerWithGameId(gameId, isHostPlayer) {
-    if (peer && !peer.disconnected) {
-        console.log("PeerJS already initialized.");
-        // If we are host and already listening for this game, do nothing.
-        // If we are client, we might be re-initializing, which is okay.
-        if (isHostPlayer && peer.id === derivePeerId(gameId, true)) return;
-        // If client, proceed to re-initialize (PeerJS handles this reasonably well)
+    if (peer && peer.id === peerId && !peer.disconnected) {
+        console.log(`PeerJS already initialized with ID ${peerId}.`);
+        return peer; // Return existing peer
     }
 
-    const peerId = derivePeerId(gameId, isHostPlayer);
-    console.log(`Initializing PeerJS with ID: ${peerId} (Game: ${gameId}, Host: ${isHostPlayer})`);
-
+    console.log(`Initializing PeerJS with ID: ${peerId}`);
     const connectionStatusElement = document.querySelector(`#wallet-connect #connection-status`);
-    if (connectionStatusElement) connectionStatusElement.textContent = `Initializing P2P for ${gameId.substring(0,8)}...`;
-    // Configure PeerJS (same config as before)
+    if (connectionStatusElement) connectionStatusElement.textContent = `Initializing P2P...`;
+
+    // Standard PeerJS config
     const peerConfig = {
         debug: 2,
         config: {
             'iceServers': [
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun3.l.google.com:19302' },
-                { urls: 'stun:stun4.l.google.com:19302' },
-                {
-                    urls: 'turn:numb.viagenie.ca',
-                    credential: 'muazkh',
-                    username: 'webrtc@live.com'
-                }
+                // Add more STUN/TURN if needed
             ]
         }
     };
-    
+
     return new Promise((resolve, reject) => {
-        if (peer && peer.id === peerId && !peer.disconnected) {
-             console.log(`Peer already initialized with ID ${peerId}.`);
-             resolve(peer);
-             return;
-        }
-        
-        // If peer exists but is disconnected or has wrong ID, destroy it first
+        // Destroy existing peer if necessary
         if (peer) {
             peer.destroy();
         }
@@ -324,113 +352,110 @@ async function initializePeerWithGameId(gameId, isHostPlayer) {
         peer.on('open', (id) => {
             console.log('PeerJS connection open. My ID:', id);
             if (connectionStatusElement) {
-                 if (isHostPlayer) {
-                    connectionStatusElement.textContent = `Waiting for opponent... (Game ID: ${gameId.substring(0,8)}...)`;
-                 } else {
-                    // Client status updated during connection attempt
-                 }
-                 connectionStatusElement.style.color = '#aaa';
+                // Status updated based on role (creator/challenged) in handleJoinGame
             }
 
-            // If host, set up listener for incoming connection
-            if (isHostPlayer) {
-                peer.on('connection', (connection) => {
-                    console.log("Incoming connection received.");
-                    if (conn && conn.open) {
-                        console.warn("Already connected to a peer. Rejecting new connection.");
-                        connection.close();
-                        return;
-                    }
-                    conn = connection;
-                    // isHost is already set correctly before calling this function
-                    handleConnection(); // Set up handlers for the established connection
-                });
-            }
-            resolve(peer); // Resolve the promise once peer is open
+            // Always listen for incoming connections (creator waits, challenged might receive confirmation)
+            peer.on('connection', (connection) => {
+                console.log(`Incoming connection from ${connection.peer}`);
+                if (conn && conn.open) {
+                    console.warn("Already connected. Rejecting new connection.");
+                    connection.close();
+                    return;
+                }
+                conn = connection;
+                // Determine host status based on who initiated the connection
+                // In this model, the creator *receives* the connection, so they are host.
+                isHost = true; // The one receiving the connection is the host
+                handleConnection(); // Set up handlers
+            });
+            resolve(peer);
         });
 
-        // Error handling
         peer.on('error', (err) => {
             console.error('PeerJS error:', err);
-            let errorMessage = `P2P Error: ${err.type}`;
             if (connectionStatusElement) {
-                connectionStatusElement.textContent = errorMessage;
+                connectionStatusElement.textContent = `P2P Error: ${err.type}`;
                 connectionStatusElement.style.color = '#ff6b6b';
             }
-            // Maybe try to clean up?
             if (peer && !peer.destroyed) peer.destroy();
             peer = null;
-            reject(err); // Reject the promise on error
+            reject(err);
         });
 
-        // Handle disconnection
         peer.on('disconnected', () => {
-            console.log('PeerJS disconnected. Attempting to reconnect...');
+            console.log('PeerJS disconnected.');
              if (connectionStatusElement) {
-                connectionStatusElement.textContent = 'P2P Disconnected. Reconnecting...';
+                connectionStatusElement.textContent = 'P2P Disconnected.';
                 connectionStatusElement.style.color = '#ffcc00';
              }
-            // PeerJS attempts reconnection automatically with default settings
-            // We might need manual intervention if it fails repeatedly
+             // Consider adding reconnect logic if needed
         });
     });
 }
 
-// Attempts to connect to the host peer for a given game
-async function connectToHostPeer(gameId) {
+// Attempts to connect to a specific peer address
+async function connectToPeerAddress(targetAddress) {
     if (!peer || peer.disconnected) {
-        console.error("PeerJS not initialized or disconnected. Cannot connect.");
-        alert("P2P connection is not ready. Please try again.");
-        return;
+        throw new Error("PeerJS not initialized or disconnected.");
     }
-    if (isHost) {
-        console.error("Host cannot connect to itself.");
-        return;
+    if (!targetAddress) {
+        throw new Error("Target address is required to connect.");
+    }
+    // Cannot connect to self
+    if (peer.id === targetAddress) {
+         console.warn("Attempted to connect to self.");
+         // If we are the creator, just wait.
+         if (isHost) {
+             const connectionStatusElement = document.querySelector(`#wallet-connect #connection-status`);
+             if (connectionStatusElement) {
+                 connectionStatusElement.innerHTML = `Waiting for opponent...`;
+                 connectionStatusElement.style.color = '#eee';
+             }
+             return; // Don't proceed with connection
+         } else {
+             throw new Error("Cannot connect to self.");
+         }
     }
 
-    const hostPeerId = derivePeerId(gameId, true); // Get the host's expected ID
-    console.log(`Attempting to connect to host: ${hostPeerId}`);
 
+    console.log(`Attempting to connect to peer: ${targetAddress}`);
     const connectionStatusElement = document.querySelector(`#wallet-connect #connection-status`);
     if (connectionStatusElement) {
-        connectionStatusElement.textContent = `Connecting to opponent for game ${gameId.substring(0,8)}...`;
+        connectionStatusElement.textContent = `Connecting to opponent...`;
         connectionStatusElement.style.color = '#aaa';
     }
 
-    // Add connection timeout
     const connectionTimeout = setTimeout(() => {
         if (!conn || !conn.open) {
             console.error('Connection timed out.');
             if (connectionStatusElement) {
-                connectionStatusElement.textContent = 'Connection timed out. Host might be offline.';
+                connectionStatusElement.textContent = 'Connection timed out.';
                 connectionStatusElement.style.color = '#ff9800';
             }
-            // Consider cleaning up peer? Or allow retry?
         }
-    }, 20000); // 20 second timeout
+    }, 20000); // 20s timeout
 
     try {
-        conn = peer.connect(hostPeerId, {
-            reliable: true,
-            serialization: 'json'
-        });
+        conn = peer.connect(targetAddress, { reliable: true, serialization: 'json' });
 
         if (!conn) {
-            throw new Error('peer.connect() failed to return a connection object.');
+            throw new Error('peer.connect() failed.');
         }
 
-        // Setup handlers for the connection *before* it opens
-        handleConnection(); // This sets up 'open', 'data', 'error', 'close'
+        // Setup handlers for the outgoing connection
+        handleConnection(); // Sets up 'data', 'error', 'close'
 
-        // Override the 'open' handler slightly for client-side feedback
         conn.on('open', () => {
             clearTimeout(connectionTimeout);
-            console.log(`Connection to host ${hostPeerId} established.`);
+            console.log(`Connection to ${targetAddress} established.`);
             if (connectionStatusElement) {
-                connectionStatusElement.textContent = 'Connected to opponent!';
+                connectionStatusElement.textContent = 'Connected!';
                 connectionStatusElement.style.color = '#4caf50';
             }
-            // The rest of the 'open' logic (starting game, etc.) is in handleConnection
+            // isHost should be false here as we initiated the connection
+            isHost = false;
+            // Rest of game start logic is in handleConnection's 'open' handler
         });
 
          conn.on('error', (err) => {
@@ -442,14 +467,14 @@ async function connectToHostPeer(gameId) {
              }
         });
 
-
     } catch (err) {
-        console.error('Error initiating connection to host:', err);
+        console.error('Error initiating connection:', err);
         clearTimeout(connectionTimeout);
         if (connectionStatusElement) {
             connectionStatusElement.textContent = 'Failed to initiate connection.';
             connectionStatusElement.style.color = '#f44336';
         }
+        throw err; // Re-throw error to be caught by handleJoinGame
     }
 }
 
