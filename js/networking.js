@@ -94,22 +94,33 @@ async function displayGameList() {
     const statusElement = document.getElementById('game-list-status');
     if (!container || !statusElement) return;
 
+    // Ensure status element is visible and set initial text
+    statusElement.style.display = 'block';
     statusElement.textContent = 'Fetching games...';
-    container.innerHTML = ''; // Clear previous list
-    container.appendChild(statusElement);
+    // Clear only previous game items, not the status message itself initially
+    // We'll clear fully later only if games are found.
+    const existingGameItems = container.querySelectorAll('div'); // Find only game divs
+    existingGameItems.forEach(item => container.removeChild(item));
+
 
     try {
         const games = await fetchGamesFromContract();
 
         if (games.length === 0) {
             statusElement.textContent = 'No active games found.';
-            return;
+            // Ensure container is otherwise empty
+            const otherItems = container.querySelectorAll('div');
+            otherItems.forEach(item => container.removeChild(item));
+            return; // Keep the "No active games" message visible
         }
 
-        statusElement.style.display = 'none'; // Hide status message
+        // Games found - hide status and clear container before adding games
+        statusElement.style.display = 'none';
+        container.innerHTML = ''; // Clear container completely now
 
         games.forEach(game => {
             const gameElement = document.createElement('div');
+            // Rest of the game element creation remains the same...
             gameElement.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
             gameElement.style.padding = '8px 0';
             gameElement.style.display = 'flex';
