@@ -557,7 +557,7 @@ function connectToPeerFreeplay() {
 
 // Note: PeerJS error/disconnect handlers are now inside initializePeerWithGameId and initializePeerForFreeplay
 
-} // End of initializePeerForFreeplay (or potentially initializePeerWithGameId if misplaced)
+// Removed extra closing brace that was here.
 // Removed old peer.on('error') and peer.on('disconnected') handlers previously here.
 
 // Removed the old connectToPeer function. Use connectToPeerFreeplay or connectToHostPeer instead.
