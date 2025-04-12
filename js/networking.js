@@ -2,39 +2,33 @@ let peer = null;
 let conn = null;
 let isHost = false;
 let gameMode = null;
-window.ephemeralWallet = null; // Store the ephemeral wallet globally
+window.ephemeralWallet = null; // Store the ephemeral PLAYER wallet globally
+window.payerAddress = null; // Store the PAYER address (MetaMask account) globally
 
 // --- Mock Contract Data ---
-const MOCK_OPPONENT_ADDRESS = "0xb41188d9f36d4CF970605722d8071094e681eFFb".toLowerCase();
-const MOCK_GAME_ID = "mockGame_PlayerVsFixedOpponent"; // Use a fixed ID for the single game
+const PAYER_1_ADDRESS = "0x9Ea451BeBA008B86Bc017A9F96355A7DA78B01F8".toLowerCase();
+const PLAYER_1_ADDRESS = "0x0B05b58266109936eAEb5be1889d4aE2aDf70FA1".toLowerCase(); // Fixed ephemeral address for Player 1
+const PAYER_2_ADDRESS = "0xb41188d9f36d4CF970605722d8071094e681eFFb".toLowerCase();
+// Player 2 ephemeral address will be generated/decrypted on connection
 
-// Function to generate the single mock game data, assuming playerAddress is the creator
-function getCreatorMockGameData(playerAddress) {
-    if (!playerAddress) return null;
+const MOCK_GAME_ID = "mockGame_P1vsP2"; // Use a fixed ID for the single game
+
+// Function to get the single mock game data
+function getMockGameData() {
+    // In a real scenario, this would fetch from the contract based on gameId or player involvement.
+    // For mock, we just return the predefined game structure.
     return {
         gameId: MOCK_GAME_ID,
-        creator: playerAddress.toLowerCase(),
-        challenged: MOCK_OPPONENT_ADDRESS,
+        payer1: PAYER_1_ADDRESS,
+        player1: PLAYER_1_ADDRESS, // P1 ephemeral address is known
+        payer2: PAYER_2_ADDRESS,
+        player2: null, // P2 ephemeral address unknown until they join/connect
         status: 'ready' // Simplified status
     };
 }
 
-// Function to generate the game data if playerAddress is the challenged one
-function getChallengedMockGameData(playerAddress) {
-     if (!playerAddress || playerAddress.toLowerCase() !== MOCK_OPPONENT_ADDRESS) return null;
-     // Need to know the creator's address - how? For mock, let's assume a fixed creator
-     const MOCK_CREATOR_ADDRESS = "0xMockCreatorAddressPlaceholder...".toLowerCase(); // Replace if needed
-     return {
-        gameId: MOCK_GAME_ID,
-        creator: MOCK_CREATOR_ADDRESS,
-        challenged: playerAddress.toLowerCase(),
-        status: 'ready'
-     };
-}
-
-
 // In-memory store (less relevant now, but keep for structure)
-let mockContractGames = []; // Will hold the dynamically generated game if needed
+let mockContractGame = getMockGameData(); // Store the single game state
 
 async function selectMode(mode) {
   gameMode = mode;
