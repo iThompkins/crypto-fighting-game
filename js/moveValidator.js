@@ -124,120 +124,126 @@ class SignedInputManager { // Renamed class
     this.remoteInputs = new Map(); // Map<hash, SignedInput> Renamed
 
     this.lastLocalInputHash = this.genesisHash; // Renamed
-    this.lastRemoteMoveHash = this.genesisHash;
-    
+    this.lastRemoteInputHash = this.genesisHash; // Renamed
+
     this.localSequence = 0;
     this.remoteSequence = 0; // Track expected sequence from remote
   }
 
-  // Creates, signs, and stores a new local game state
-  async createAndSignLocalState(state, wallet) {
+  // Creates, signs, and stores a new local input event
+  async createAndSignInput(input, wallet) { // Renamed method, takes input object
     if (!wallet || wallet.address.toLowerCase() !== this.localPlayerId.toLowerCase()) {
-        throw new Error("Invalid wallet provided for signing local state.");
+        throw new Error(`Invalid wallet provided for signing local input. Expected ${this.localPlayerId}, got ${wallet ? wallet.address : 'null'}`);
     }
-    
-    const timestamp = Date.now();
+
+    const timestamp = Date.now(); // Use event timestamp if available, else now
     const sequence = ++this.localSequence;
-    
-    // Create the state object, linking to previous local and remote hashes
-    const signedState = new SignedGameState(
+
+    // Create the input object, linking to previous local and remote input hashes
+    const signedInput = new SignedInput(
       this.localPlayerId,
-      this.lastLocalMoveHash,
-      this.lastRemoteMoveHash, // Include opponent's last known hash
-      state,
+      this.lastLocalInputHash,   // Link to previous local input
+      this.lastRemoteInputHash,  // Link to opponent's last known input
+      input,                     // The actual input data { key, type }
       timestamp
     );
-    signedState.move.sequence = sequence;
+    signedInput.inputData.sequence = sequence;
 
-    // Sign the state
-    await signedState.sign(wallet);
-    
+    // Sign the input data
+    await signedInput.sign(wallet);
+
     // Store and update last hash
-    this.localMoves.set(signedState.hash, signedState);
-    this.lastLocalMoveHash = signedState.hash;
-    
-    console.log(`Created local move #${sequence}, hash: ${signedState.hash.substring(0, 10)}...`);
-    return signedState;
+    this.localInputs.set(signedInput.hash, signedInput);
+    this.lastLocalInputHash = signedInput.hash;
+
+    // console.log(`Created local input #${sequence} (${input.key} ${input.type}), hash: ${signedInput.hash.substring(0, 10)}...`);
+    return signedInput;
   }
 
-  // Validates and stores an incoming remote game state
-  validateAndStoreRemoteState(signedState) {
+  // Validates and stores an incoming remote input event
+  validateAndStoreRemoteInput(signedInput) { // Renamed method
     // 0. Reconstruct the object if it's plain JSON
-    // (PeerJS might serialize/deserialize, losing the class instance methods)
-    let remoteState = Object.assign(new SignedGameState(null, null, null, null, null), signedState);
-    remoteState.move = signedState.move; // Ensure nested object is also assigned
+    let remoteInput = Object.assign(new SignedInput(null, null, null, null, null), signedInput);
+    remoteInput.inputData = signedInput.inputData; // Ensure nested object is assigned
 
     // 1. Verify Signature
-    if (!remoteState.verifySignature()) {
-      console.error("Invalid signature on remote state:", remoteState);
+    if (!remoteInput.verifySignature()) {
+      console.error("Invalid signature on remote input:", remoteInput);
       return { valid: false, reason: 'Invalid signature' };
     }
-    
+
     // 2. Verify Player ID (should not be the local player)
-    if (remoteState.move.playerId.toLowerCase() === this.localPlayerId.toLowerCase()) {
-      console.error("Remote state has local player ID:", remoteState);
-      return { valid: false, reason: 'Remote state signed by local player' };
+    if (remoteInput.inputData.playerId.toLowerCase() === this.localPlayerId.toLowerCase()) {
+      console.error("Remote input has local player ID:", remoteInput);
+      return { valid: false, reason: 'Remote input signed by local player' };
     }
 
-    // 3. Verify Sequence Number (should be the next expected sequence)
+    // 3. Verify Sequence Number (Allowing for potential out-of-order for now)
     const expectedRemoteSequence = this.remoteSequence + 1;
-    if (remoteState.move.sequence !== expectedRemoteSequence) {
-      console.error(`Invalid remote sequence. Expected ${expectedRemoteSequence}, got ${remoteState.move.sequence}`);
-      return { valid: false, reason: `Invalid sequence number. Expected ${expectedRemoteSequence}` };
+    if (remoteInput.inputData.sequence !== expectedRemoteSequence) {
+      console.warn(`Out-of-order remote sequence. Expected ${expectedRemoteSequence}, got ${remoteInput.inputData.sequence}. Accepting for now.`);
+      // TODO: Implement proper sequence handling if needed (e.g., buffering)
+      if (remoteInput.inputData.sequence > this.remoteSequence) {
+          this.remoteSequence = remoteInput.inputData.sequence; // Advance sequence if higher
+      }
+    } else {
+        this.remoteSequence = remoteInput.inputData.sequence; // Update expected sequence normally
     }
 
-    // 4. Verify Hash Calculation (ensure hash matches recalculated hash)
-    // Recalculate hash based on received data to prevent tampering
-    const recalculatedHash = remoteState.calculateHash();
-    if (remoteState.hash !== recalculatedHash) {
-        console.error(`Remote state hash mismatch. Received: ${remoteState.hash}, Recalculated: ${recalculatedHash}`);
+
+    // 4. Verify Hash Calculation
+    const recalculatedHash = remoteInput.calculateHash();
+    if (remoteInput.hash !== recalculatedHash) {
+        console.error(`Remote input hash mismatch. Received: ${remoteInput.hash}, Recalculated: ${recalculatedHash}`);
         return { valid: false, reason: 'Hash mismatch' };
     }
 
-    // 5. Verify Player's Previous Hash
-    // The playerPrevHash in the remote state should match the hash of *their* previous move
-    if (remoteState.move.playerPrevHash !== this.lastRemoteMoveHash) {
-      console.error(`Invalid remote playerPrevHash. Expected ${this.lastRemoteMoveHash}, got ${remoteState.move.playerPrevHash}`);
-      return { valid: false, reason: 'Invalid player previous hash link' };
+    // 5. Verify Player's Previous Hash (Allowing for potential out-of-order for now)
+    // Find the input corresponding to the previous hash they sent
+    const claimedPrevRemoteInput = this.remoteInputs.get(remoteInput.inputData.playerPrevHash);
+    if (remoteInput.inputData.playerPrevHash !== this.genesisHash && !claimedPrevRemoteInput) {
+         console.warn(`Remote input's playerPrevHash (${remoteInput.inputData.playerPrevHash.substring(0,10)}) not found in our history. Accepting for now.`);
+         // TODO: Implement stricter hash chain validation if needed.
+    }
+    // Basic check: ensure the sequence number makes sense relative to the claimed previous input
+    if (claimedPrevRemoteInput && remoteInput.inputData.sequence <= claimedPrevRemoteInput.inputData.sequence) {
+        console.error(`Sequence number regression detected. Current: ${remoteInput.inputData.sequence}, Previous: ${claimedPrevRemoteInput.inputData.sequence}`);
+        return { valid: false, reason: 'Sequence number regression' };
     }
 
-    // 6. Verify Opponent's Previous Hash (Crucial Link!)
-    // The opponentPrevHash in the remote state should match the hash of *our* last move
-    if (remoteState.move.opponentPrevHash !== this.lastLocalMoveHash) {
-      // This is tricky - network latency means our lastLocalMoveHash might be ahead.
-      // We should check if the opponentPrevHash matches *any* of our recent local move hashes.
-      // For simplicity now, we'll allow a slight mismatch but log a warning.
-      // A more robust solution might involve acknowledging received hashes.
-      if (!this.localMoves.has(remoteState.move.opponentPrevHash)) {
-         console.warn(`Potential desync? Remote state's opponentPrevHash (${remoteState.move.opponentPrevHash.substring(0,10)}...) doesn't match our last local hash (${this.lastLocalMoveHash.substring(0,10)}...). Checking history...`);
-         // Allow if it matches any known local hash (simple check)
-         if (!this.localMoves.has(remoteState.move.opponentPrevHash)) {
-            console.error(`Fatal desync: opponentPrevHash ${remoteState.move.opponentPrevHash} not found in local history.`);
-            return { valid: false, reason: 'Invalid opponent previous hash link (desync)' };
-         }
-         console.log("Accepted remote state referencing an older local hash.");
-      }
+
+    // 6. Verify Opponent's Previous Hash (Link to our actions)
+    if (!this.localInputs.has(remoteInput.inputData.opponentPrevHash) && remoteInput.inputData.opponentPrevHash !== this.genesisHash) {
+       console.warn(`Potential desync? Remote input's opponentPrevHash (${remoteInput.inputData.opponentPrevHash.substring(0,10)}...) not found in local history.`);
+       // TODO: Implement stricter validation or acknowledgement mechanism.
+       // return { valid: false, reason: 'Invalid opponent previous hash link (desync)' };
     }
 
-    // All checks passed! Store the valid remote state.
-    this.remoteMoves.set(remoteState.hash, remoteState);
-    this.lastRemoteMoveHash = remoteState.hash;
-    this.remoteSequence = remoteState.move.sequence; // Update expected sequence
+    // All checks passed (or warnings issued)! Store the valid remote input.
+    this.remoteInputs.set(remoteInput.hash, remoteInput);
 
-    console.log(`Validated remote move #${remoteState.move.sequence}, hash: ${remoteState.hash.substring(0, 10)}...`);
-    return { valid: true, state: remoteState }; // Return the validated state object
+    // Update lastRemoteInputHash *only* if this input is the highest sequence received so far
+    // Note: This logic might need refinement if strict ordering is required.
+    const currentLastRemote = this.remoteInputs.get(this.lastRemoteInputHash);
+    if (!currentLastRemote || remoteInput.inputData.sequence > currentLastRemote.inputData.sequence) {
+        this.lastRemoteInputHash = remoteInput.hash;
+    }
+
+
+    // console.log(`Validated remote input #${remoteInput.inputData.sequence}, hash: ${remoteInput.hash.substring(0, 10)}...`);
+    return { valid: true, input: remoteInput }; // Return the validated input object
   }
 
-  // Get the combined, ordered history of moves
+  // Get the combined, ordered history of inputs
   getCombinedHistory() {
-    const combined = [...this.localMoves.values(), ...this.remoteMoves.values()];
+    const combined = [...this.localInputs.values(), ...this.remoteInputs.values()];
     // Sort primarily by timestamp, then sequence as a tie-breaker
     combined.sort((a, b) => {
-        if (a.move.timestamp !== b.move.timestamp) {
-            return a.move.timestamp - b.move.timestamp;
+        if (a.inputData.timestamp !== b.inputData.timestamp) {
+            return a.inputData.timestamp - b.inputData.timestamp;
         }
         // If timestamps are identical, use sequence (lower sequence first)
-        return a.move.sequence - b.move.sequence; 
+        return a.inputData.sequence - b.inputData.sequence;
     });
     return combined;
   }

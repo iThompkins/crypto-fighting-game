@@ -17,10 +17,10 @@ function initSignedMoveManager(localPlayerId, gameId) {
   if (gameMode === 'wallet' && gameId) {
     // Use the gameId directly as the genesis hash for this game instance
     // Ensure it's treated as bytes32 if necessary by hashing it, or use as string if validator handles it.
-    // Let's assume SignedMoveManager expects a bytes32 hash. We hash the gameId string.
+    // Let's assume SignedInputManager expects a bytes32 hash. We hash the gameId string.
     const genesisHash = ethers.utils.id(gameId); // Hash the gameId string to get bytes32
-    gameState.signedMoveManager = new SignedMoveManager(localPlayerId, genesisHash);
-    console.log(`SignedMoveManager initialized for ${localPlayerId} for game ${gameId.substring(0,8)}... (Genesis: ${genesisHash})`);
+    gameState.signedMoveManager = new SignedInputManager(localPlayerId, genesisHash); // Use new class name
+    console.log(`SignedInputManager initialized for Player ${localPlayerId} for game ${gameId.substring(0,8)}... (Genesis: ${genesisHash})`);
   }
 }
 
