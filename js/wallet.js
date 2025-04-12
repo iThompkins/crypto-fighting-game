@@ -104,7 +104,15 @@ async function connectWallet() {
     try {
         let wallet = await checkExistingWallet();
         if (!wallet) {
+            console.log("Generating new ephemeral wallet...");
             wallet = await generateAndEncryptWallet();
+            console.log("New ephemeral wallet generated.");
+        } else {
+            console.log("Existing ephemeral wallet decrypted.");
+        }
+        // Log the address once we have the wallet object
+        if (wallet && wallet.address) {
+            console.log("Ephemeral Wallet Address:", wallet.address);
         }
         return wallet;
     } catch (error) {
