@@ -1,19 +1,19 @@
-// Represents a single signed game state snapshot
-class SignedGameState {
-  constructor(playerId, playerPrevHash, opponentPrevHash, state, timestamp) {
-    this.move = {
-      playerId: playerId,         // Address of the player making the move
-      playerPrevHash: playerPrevHash, // Hash of this player's previous move
-      opponentPrevHash: opponentPrevHash, // Hash of the opponent's last validated move
-      state: JSON.stringify(state), // Player state snapshot (JSON string for consistency)
-      timestamp: timestamp,       // Timestamp of the move
+// Represents a single signed player input
+class SignedInput { // Renamed class
+  constructor(playerId, playerPrevHash, opponentPrevHash, input, timestamp) {
+    this.inputData = { // Renamed 'move' to 'inputData' for clarity
+      playerId: playerId,         // Address of the PLAYER wallet making the input
+      playerPrevHash: playerPrevHash, // Hash of this player's previous input
+      opponentPrevHash: opponentPrevHash, // Hash of the opponent's last validated input
+      input: JSON.stringify(input), // The input action, e.g., { key: 'w', type: 'keydown' }
+      timestamp: timestamp,       // Timestamp of the input event
       sequence: 0                 // Sequence number for this player
     };
     this.signature = null;        // EIP-712 signature
-    this.hash = null;             // Keccak256 hash of the signed move data
+    this.hash = null;             // Keccak256 hash of the signed input data
   }
 
-  async sign(wallet) {
+  async sign(wallet) { // Wallet should be the ephemeral PLAYER wallet
     if (!wallet) {
       throw new Error("Wallet is required for signing.");
     }
@@ -25,25 +25,25 @@ class SignedGameState {
       verifyingContract: '0x0000000000000000000000000000000000000000' // TODO: Replace if using a contract
     };
 
-    // Define the EIP-712 type structure
+    // Define the EIP-712 type structure for SignedInput
     const types = {
-      SignedGameState: [
+      SignedInput: [ // Renamed type
         { name: 'playerId', type: 'address' },
         { name: 'playerPrevHash', type: 'bytes32' },
         { name: 'opponentPrevHash', type: 'bytes32' },
-        { name: 'state', type: 'string' }, // Keep as string to match JSON.stringify
+        { name: 'input', type: 'string' }, // JSON string of the input object
         { name: 'timestamp', type: 'uint256' },
         { name: 'sequence', type: 'uint256' }
       ]
     };
 
     try {
-      // Sign the structured data
-      this.signature = await wallet._signTypedData(domain, types, this.move);
+      // Sign the structured data (using this.inputData)
+      this.signature = await wallet._signTypedData(domain, types, this.inputData);
       this.calculateHash(); // Calculate hash after signing
       return this;
     } catch (error) {
-      console.error("Error signing game state:", error);
+      console.error("Error signing input:", error);
       throw error;
     }
   }
@@ -58,13 +58,13 @@ class SignedGameState {
     const encodedData = ethers.utils.defaultAbiCoder.encode(
       ['bytes32', 'address', 'bytes32', 'bytes32', 'bytes32', 'uint256', 'uint256', 'bytes'],
       [
-        ethers.utils.id("SignedGameState(address playerId,bytes32 playerPrevHash,bytes32 opponentPrevHash,string state,uint256 timestamp,uint256 sequence)"), // Type hash
-        this.move.playerId,
-        this.move.playerPrevHash,
-        this.move.opponentPrevHash,
-        ethers.utils.id(this.move.state), // Hash the string state
-        this.move.timestamp,
-        this.move.sequence,
+        ethers.utils.id("SignedInput(address playerId,bytes32 playerPrevHash,bytes32 opponentPrevHash,string input,uint256 timestamp,uint256 sequence)"), // Type hash for SignedInput
+        this.inputData.playerId,
+        this.inputData.playerPrevHash,
+        this.inputData.opponentPrevHash,
+        ethers.utils.id(this.inputData.input), // Hash the stringified input
+        this.inputData.timestamp,
+        this.inputData.sequence,
         this.signature || '0x' // Include signature in hash
       ]
     );
@@ -84,26 +84,26 @@ class SignedGameState {
       };
 
       const types = {
-        SignedGameState: [
+        SignedInput: [ // Renamed type
           { name: 'playerId', type: 'address' },
           { name: 'playerPrevHash', type: 'bytes32' },
           { name: 'opponentPrevHash', type: 'bytes32' },
-          { name: 'state', type: 'string' },
+          { name: 'input', type: 'string' },
           { name: 'timestamp', type: 'uint256' },
           { name: 'sequence', type: 'uint256' }
         ]
       };
 
-      // Verify the signature against the move data
+      // Verify the signature against the input data
       const recoveredAddr = ethers.utils.verifyTypedData(
         domain,
         types,
-        this.move, // Use the raw move data for verification
+        this.inputData, // Use the raw input data for verification
         this.signature
       );
-      
-      // Compare recovered address with the playerId in the move
-      return recoveredAddr.toLowerCase() === this.move.playerId.toLowerCase();
+
+      // Compare recovered address with the playerId in the input data
+      return recoveredAddr.toLowerCase() === this.inputData.playerId.toLowerCase();
     } catch (e) {
       console.error('Signature verification failed:', e);
       return false;
@@ -113,17 +113,17 @@ class SignedGameState {
 }
 
 
-// Manages the chain of signed game states for both players
-class SignedMoveManager {
+// Manages the chain of signed inputs for both players
+class SignedInputManager { // Renamed class
   constructor(localPlayerId, genesisHash = ethers.constants.HashZero) {
-    this.localPlayerId = localPlayerId; // Address of the local ephemeral wallet
-    this.genesisHash = genesisHash;     // Starting hash for the chains
+    this.localPlayerId = localPlayerId; // Address of the local ephemeral PLAYER wallet
+    this.genesisHash = genesisHash;     // Starting hash for the input chains
 
-    // Store moves keyed by their hash for efficient lookup
-    this.localMoves = new Map(); // Map<hash, SignedGameState>
-    this.remoteMoves = new Map(); // Map<hash, SignedGameState>
-    
-    this.lastLocalMoveHash = this.genesisHash;
+    // Store inputs keyed by their hash for efficient lookup
+    this.localInputs = new Map(); // Map<hash, SignedInput> Renamed
+    this.remoteInputs = new Map(); // Map<hash, SignedInput> Renamed
+
+    this.lastLocalInputHash = this.genesisHash; // Renamed
     this.lastRemoteMoveHash = this.genesisHash;
     
     this.localSequence = 0;

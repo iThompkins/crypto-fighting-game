@@ -337,9 +337,22 @@ animate()
 let currentKeys = new Set();
 
 document.addEventListener('keydown', (event) => {
-  currentKeys.add(event.key);
+  // Only process keydown if game is running in wallet mode and manager exists
+  if (gameMode === 'wallet' && gameState.signedMoveManager && gameState.gameStarted && !gameState.gameEnded) {
+      const input = { key: event.key, type: 'keydown' };
+      // Don't process repeatedly for held keys if already active
+      if (!currentKeys.has(event.key)) {
+          currentKeys.add(event.key);
+          // Create, sign, and send the input
+          sendSignedInput(input);
+      }
+  } else if (gameMode === 'freeplay') {
+      // Original freeplay logic
+      currentKeys.add(event.key);
+  }
+
+  // Original logic for lastKey (might still be useful for local animation hints)
   const controlledPlayer = isHost ? player : player2;
-  
   if (!controlledPlayer.dead) {
     switch (event.key) {
       case 'd':
@@ -361,10 +374,23 @@ document.addEventListener('keydown', (event) => {
 })
 
 document.addEventListener('keyup', (event) => {
-  currentKeys.delete(event.key);
+  // Only process keyup if game is running in wallet mode and manager exists
+  if (gameMode === 'wallet' && gameState.signedMoveManager && gameState.gameStarted && !gameState.gameEnded) {
+      if (currentKeys.has(event.key)) {
+          currentKeys.delete(event.key);
+          const input = { key: event.key, type: 'keyup' };
+          // Create, sign, and send the input
+          sendSignedInput(input);
+      }
+  } else if (gameMode === 'freeplay') {
+      // Original freeplay logic
+      currentKeys.delete(event.key);
+  }
+
+  // Original logic (might be removable later)
   switch (event.key) {
     case 'd':
-      keys.d.pressed = false
+      keys.d.pressed = false // This 'keys' object seems unused now?
       break
     case 'a':
       keys.a.pressed = false
@@ -381,6 +407,24 @@ document.addEventListener('keyup', (event) => {
       break
   }
 })
+
+
+// --- Wallet Mode: Function to sign and send input ---
+async function sendSignedInput(input) {
+    if (!gameState.signedMoveManager || !window.ephemeralWallet || !conn || !conn.open) {
+        console.warn("Cannot send input: SignedInputManager, wallet, or connection not ready.");
+        return;
+    }
+    try {
+        const signedInput = await gameState.signedMoveManager.createAndSignInput(input, window.ephemeralWallet);
+        // Send via networking function
+        sendInput(signedInput);
+    } catch (error) {
+        console.error("Error creating or signing input:", error);
+        // Handle error appropriately (e.g., alert user, disconnect?)
+    }
+}
+
 
 // Keep track of connection health
 let lastPingTime = 0;
