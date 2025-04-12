@@ -54,14 +54,24 @@ async function selectMode(mode) {
 
       // Hide loading overlay after successful connection
       if (loadingOverlay) loadingOverlay.style.display = 'none';
-      // Removed extra closing brace that was here
-      window.ephemeralWallet = wallet; // Store wallet globally
-      console.log("Ephemeral Wallet Ready:", wallet.address);
 
-      // Update UI with wallet address
+      // Store the ephemeral PLAYER wallet
+      window.ephemeralWallet = wallet;
+      console.log("Ephemeral Player Wallet Ready:", wallet.address);
+
+      // Get and store the PAYER address (MetaMask account)
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (!accounts || accounts.length === 0) {
+          throw new Error("MetaMask account not found after connection.");
+      }
+      window.payerAddress = accounts[0].toLowerCase();
+      console.log("Payer Address (MetaMask):", window.payerAddress);
+
+
       const walletDisplay = document.getElementById('wallet-address-display');
       if (walletDisplay) {
-          walletDisplay.textContent = `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}`;
+          // Display the Payer address, not the ephemeral one
+          walletDisplay.textContent = `Payer: ${window.payerAddress.slice(0, 6)}...${window.payerAddress.slice(-4)}`;
       }
 
       // 2. Show the game list/creation UI
@@ -106,27 +116,24 @@ window.addEventListener('load', () => {
 
 // --- Wallet Mode Specific Functions ---
 
-// Mock function to fetch the single predefined game if the player is involved
+// Mock function to fetch the single predefined game if the current PAYER is involved
 async function fetchGamesFromContract() {
-    if (!window.ephemeralWallet) return [];
-    const playerAddress = window.ephemeralWallet.address.toLowerCase();
-
-    // Try generating the game assuming the current player is the creator
-    let mockGame = getCreatorMockGameData(playerAddress);
-
-    // If that didn't work (player isn't creator), try generating assuming they are the challenged
-    // Note: This uses a placeholder creator address. In reality, the contract would provide the correct game data.
-    if (!mockGame) {
-        mockGame = getChallengedMockGameData(playerAddress);
+    // Use the globally stored payer address
+    if (!window.payerAddress) {
+        console.error("Payer address not available for fetching games.");
+        return [];
     }
 
-    if (mockGame) {
-        console.log("Returning mock game:", mockGame);
-        mockContractGames = [mockGame]; // Update store
-        return [mockGame];
+    const gameData = getMockGameData(); // Get the static game data
+
+    // Check if the current payer is Payer 1 or Payer 2
+    if (window.payerAddress === gameData.payer1 || window.payerAddress === gameData.payer2) {
+        console.log("Returning mock game data as current payer is involved:", gameData);
+        // Update the global mock state (optional)
+        mockContractGame = gameData;
+        return [gameData]; // Return as an array
     } else {
-        console.log("Current player is not involved in the mock game.");
-        mockContractGames = []; // Clear store
+        console.log("Current payer is not involved in the mock game.");
         return [];
     }
 }
@@ -165,20 +172,20 @@ async function displayGameList() {
             gameElement.style.justifyContent = 'space-between';
             gameElement.style.alignItems = 'center';
 
-            const playerAddress = window.ephemeralWallet.address.toLowerCase();
-            // Determine roles based on potentially placeholder addresses
-            const gameCreator = game.creator === "LOCAL_PLAYER_PLACEHOLDER" ? playerAddress : game.creator.toLowerCase();
-            const gameChallenged = game.challenged.toLowerCase();
-            const isCreator = gameCreator === playerAddress;
-            // Determine the actual opponent address based on the player's role
-            const opponentAddress = isCreator ? gameChallenged : gameCreator;
+            // Use payer address to determine role and opponent
+            if (!window.payerAddress) {
+                 console.error("Payer address missing, cannot display game details correctly.");
+                 return; // Skip rendering this game item
+            }
+            const isPayer1 = window.payerAddress === game.payer1;
+            const opponentPayerAddress = isPayer1 ? game.payer2 : game.payer1;
 
             // Always show a Join button for the mock game
             let actionButtonHtml = `<button onclick="handleJoinGame('${game.gameId}')" style="padding: 5px 8px; font-size: 10px;">Join / Rejoin</button>`;
 
             gameElement.innerHTML = `
                 <span style="font-size: 12px;">
-                  Game vs ${opponentAddress.substring(0, 6)}... (ID: ${game.gameId})
+                  Game vs Payer ${opponentPayerAddress.substring(0, 6)}... (ID: ${game.gameId})
                 </span>
                 ${actionButtonHtml}
             `;
@@ -242,68 +249,61 @@ async function handleJoinGame(gameId) {
     }
 
     try {
-        // 1. Get player address
-        if (!window.ephemeralWallet) throw new Error("Wallet not connected.");
-        const playerAddress = window.ephemeralWallet.address.toLowerCase();
+        // 1. Get current Payer address
+        if (!window.payerAddress) throw new Error("Payer address not available.");
 
-        // 2. Get the specific game data (using the fixed ID)
-        // We need to know who the creator is for this game ID.
-        // In a real scenario, we'd fetch game details by ID.
-        // For mock, assume getCreatorMockGameData gives the canonical game state.
-        const gameData = getCreatorMockGameData(playerAddress) || getChallengedMockGameData(playerAddress); // Get game data based on current player role
-
+        // 2. Get the mock game data
+        const gameData = getMockGameData();
         if (!gameData || gameData.gameId !== gameId) {
-             // If the game isn't found for the current player, maybe they are the opponent?
-             // Let's try fetching assuming the *other* player created it.
-             // This is hacky for mock - real contract fetch is needed.
-             console.warn("Couldn't find game data assuming current player is creator/challenged. Trying opponent perspective.");
-             // We need the creator's address if we are the challenged one.
-             // For mock, we can't easily know this without more info.
-             // Let's stick to the primary mock game definition for now.
-             // Re-fetch using the fixed ID logic.
-             const potentialGame = (mockContractGames.length > 0 && mockContractGames[0].gameId === gameId) ? mockContractGames[0] : null;
-             if (!potentialGame) {
-                 throw new Error(`Mock game data not found for game ID ${gameId}`);
-             }
-             // Re-determine roles based on stored/fetched game data
-             const creatorAddress = potentialGame.creator.toLowerCase();
-             const challengedAddress = potentialGame.challenged.toLowerCase();
-             isHost = (playerAddress === creatorAddress);
-
-             if (playerAddress !== creatorAddress && playerAddress !== challengedAddress) {
-                 throw new Error("Current player is not part of this game.");
-             }
-             console.log(`Joining game ${gameId}. Role: ${isHost ? 'Host (Creator)' : 'Client (Challenged)'}`);
-             gameState.currentGameId = gameId; // Store game ID
-
-        } else {
-             // Game data found directly, determine role
-             isHost = (gameData.creator.toLowerCase() === playerAddress);
-             console.log(`Joining game ${gameId}. Role: ${isHost ? 'Host (Creator)' : 'Client (Challenged)'}`);
-             gameState.currentGameId = gameId; // Store game ID
+            throw new Error(`Mock game data not found or ID mismatch for ${gameId}`);
         }
 
+        // 3. Determine role (Payer 1 = Host, Payer 2 = Client)
+        const isPayer1 = window.payerAddress === gameData.payer1;
+        isHost = isPayer1; // Set global host status
+        console.log(`Joining game ${gameId}. Role: ${isHost ? 'Host (Payer 1)' : 'Client (Payer 2)'}`);
 
-        // 3. Initialize PeerJS with player's own address
-        await initializePeerWithAddress(playerAddress);
-
-        // 4. Connect or Wait
-        if (!isHost) {
-            // Player is the challenged client, connect to the creator's address
-            const creatorAddress = mockContractGames.find(g => g.gameId === gameId)?.creator;
-            if (!creatorAddress) throw new Error("Could not determine creator address for connection.");
-            if (joinButton) joinButton.textContent = 'Connecting...';
-            await connectToPeerAddress(creatorAddress);
+        // 4. Ensure correct ephemeral PLAYER wallet is ready
+        // Payer 1 uses the fixed PLAYER_1_ADDRESS
+        // Payer 2 uses the wallet generated/decrypted by connectWallet()
+        if (isPayer1) {
+            // For Payer 1, we need to ensure window.ephemeralWallet is set to the *fixed* PLAYER_1_ADDRESS.
+            // This is a mock scenario override. In reality, Payer 1 would also use connectWallet.
+            // We'll create a temporary wallet object for Payer 1 for consistency.
+            // IMPORTANT: This mock wallet won't have the private key unless derived.
+            // For signing to work for Payer 1 in mock, they'd need to connect with a wallet
+            // that can somehow provide the private key for PLAYER_1_ADDRESS, or we disable signing for P1 mock.
+            // Let's assume for mock, Payer 1's signing might not work without extra setup.
+             window.ephemeralWallet = { address: PLAYER_1_ADDRESS }; // Mock wallet object
+             console.log("Mock: Set ephemeral wallet for Payer 1 to fixed address:", PLAYER_1_ADDRESS);
         } else {
-            // Player is the creator host, just wait for connection
+            // Payer 2 should already have their ephemeral wallet in window.ephemeralWallet from connectWallet()
+            if (!window.ephemeralWallet || window.payerAddress !== PAYER_2_ADDRESS) {
+                 // This check ensures Payer 2 is connecting with the correct payer account
+                 // and has an ephemeral wallet ready.
+                 throw new Error("Payer 2 ephemeral wallet not ready or payer address mismatch.");
+            }
+             // Update the mock game data with Payer 2's ephemeral address (optional)
+             mockContractGame.player2 = window.ephemeralWallet.address.toLowerCase();
+        }
+
+        // 5. Store game ID
+        gameState.currentGameId = gameId;
+
+        // 6. Initialize PeerJS with PAYER address
+        await initializePeerWithAddress(window.payerAddress);
+
+        // 7. Connect (if Payer 2) or Wait (if Payer 1)
+        if (!isHost) { // User is Payer 2 (Client)
+            if (joinButton) joinButton.textContent = 'Connecting...';
+            await connectToPeerAddress(PAYER_1_ADDRESS); // Connect to Payer 1's address
+        } else { // User is Payer 1 (Host)
             const connectionStatusElement = document.querySelector(`#wallet-connect #connection-status`);
             if (connectionStatusElement) {
-                connectionStatusElement.innerHTML = `Waiting for opponent...`;
+                connectionStatusElement.innerHTML = `Waiting for Payer 2 (${PAYER_2_ADDRESS.substring(0,6)}...)`;
                 connectionStatusElement.style.color = '#eee';
             }
-             // Re-enable button for host? Or keep disabled until connected?
-             // Let's keep it disabled for now to avoid re-clicking.
-             // if(joinButton) joinButton.disabled = false; // Optional
+            // Keep button disabled while waiting
         }
 
     } catch (error) {
