@@ -39,7 +39,8 @@ class SignedInput { // Renamed class
 
     try {
       // Sign the structured data (using this.inputData)
-      this.signature = await wallet._signTypedData(domain, types, this.inputData);
+      // Use the public signTypedData method
+      this.signature = await wallet.signTypedData(domain, types, this.inputData);
       this.calculateHash(); // Calculate hash after signing
       return this;
     } catch (error) {

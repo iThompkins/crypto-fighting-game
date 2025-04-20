@@ -416,8 +416,41 @@ async function sendSignedInput(input) {
         return;
     }
     try {
-        const signedInput = await gameState.signedMoveManager.createAndSignInput(input, window.ephemeralWallet);
-        // Send via networking function
+        let signedInput;
+        // --- MOCK HACK: Skip signing for Payer 1 ---
+        // In the real game, both players must sign.
+        // This is because we created a fake wallet object for Payer 1 in handleJoinGame
+        // which doesn't have the private key needed for signing.
+        const isPayer1Mock = window.payerAddress === PAYER_1_ADDRESS;
+        if (isPayer1Mock && gameMode === 'wallet') {
+             console.warn("Mock Mode: Skipping signing for Payer 1.");
+             // Create the input object structure but don't sign
+             const timestamp = Date.now();
+             const sequence = ++gameState.signedMoveManager.localSequence;
+             signedInput = new SignedInput(
+                 window.ephemeralWallet.address, // Use the fixed PLAYER_1_ADDRESS here
+                 gameState.signedMoveManager.lastLocalInputHash,
+                 gameState.signedMoveManager.lastRemoteInputHash,
+                 input,
+                 timestamp
+             );
+             signedInput.inputData.sequence = sequence;
+             // Manually update local hash tracking without signing
+             // Note: Hash will be different than if it were signed. Verification will fail if checked strictly.
+             signedInput.calculateHash(); // Calculate hash based on unsigned data + empty sig
+             gameState.signedMoveManager.localInputs.set(signedInput.hash, signedInput);
+             gameState.signedMoveManager.lastLocalInputHash = signedInput.hash;
+        } else {
+             // Normal signing process for Payer 2 (or non-mock scenarios)
+             if (!window.ephemeralWallet || typeof window.ephemeralWallet.signTypedData !== 'function') {
+                 console.error("Ephemeral wallet is not ready or invalid for signing.", window.ephemeralWallet);
+                 throw new Error("Player wallet cannot sign.");
+             }
+             signedInput = await gameState.signedMoveManager.createAndSignInput(input, window.ephemeralWallet);
+        }
+        // --- End of MOCK HACK ---
+
+        // Send the (potentially unsigned for P1 mock) input via networking function
         sendInput(signedInput);
     } catch (error) {
         console.error("Error creating or signing input:", error);
