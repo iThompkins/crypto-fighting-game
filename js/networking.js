@@ -665,10 +665,10 @@ function handleConnection() {
             gameState.player2Connected = true; // Remote player
             player2.show();
 
-            // Initialize SignedMoveManager if in wallet mode, using the stored gameId
+            // Initialize SignedStateManager if in wallet mode, using the stored gameId
             if (gameMode === 'wallet' && window.ephemeralWallet && gameState.currentGameId) {
-                // Use currentGameId as the genesis hash for the move manager
-                initSignedMoveManager(window.ephemeralWallet.address, gameState.currentGameId);
+                // Use currentGameId as the genesis hash for the state manager
+                initSignedStateManager(window.ephemeralWallet.address, gameState.currentGameId);
             } else if (gameMode === 'wallet') {
                  console.error("Wallet mode connection opened, but wallet or gameId missing!");
                  // Handle this error state? Disconnect?
@@ -692,10 +692,10 @@ function handleConnection() {
             gameState.player2Connected = true; // Local player
             player2.show();
 
-             // Initialize SignedMoveManager if in wallet mode, using the stored gameId
+             // Initialize SignedStateManager if in wallet mode, using the stored gameId
             if (gameMode === 'wallet' && window.ephemeralWallet && gameState.currentGameId) {
                 // Client uses their own wallet address and the known gameId
-                 initSignedMoveManager(window.ephemeralWallet.address, gameState.currentGameId);
+                 initSignedStateManager(window.ephemeralWallet.address, gameState.currentGameId);
             } else if (gameMode === 'wallet') {
                  console.error("Wallet mode connection opened, but wallet or gameId missing!");
             }
@@ -750,73 +750,26 @@ function handleConnection() {
     }); // End of conn.on('close')
 } // End of handleConnection function
 
-// Sends the current player state (either raw or signed depending on mode)
+// This function is now only used for freeplay mode
+// Wallet mode uses syncGameState() instead
 async function sendPlayerState(player) {
     if (!conn || !conn.open) return;
 
     try {
-        let dataToSend;
-
-        if (gameMode === 'wallet') {
-            // --- Wallet Mode: Create and send SignedGameState ---
-            if (!gameState.signedMoveManager) {
-                console.error("SignedMoveManager not initialized for wallet mode.");
-                return;
-            }
-
-            const wallet = await getEphemeralWallet();
-            if (!wallet) {
-                console.error("Ephemeral wallet not available for signing.");
-                // Maybe alert the user or attempt re-authentication?
-                return;
-            }
-
-            // Create a snapshot of the player's current state
-            // Note: We still use moveSync to *get* the state structure easily,
-            // but the history/sequence there isn't the primary source of truth for wallet mode.
-            const currentStateSnapshot = {
-                position: { ...player.position },
-                velocity: { ...player.velocity },
-                health: player.health,
-                facingLeft: player.facingLeft,
-                isAttacking: player.isAttacking,
-                // Ensure currentSprite is captured correctly
-                currentSprite: player.image === player.sprites.idle.image ? 'idle' :
-                               player.image === player.sprites.run.image ? 'run' :
-                               player.image === player.sprites.jump.image ? 'jump' :
-                               player.image === player.sprites.fall.image ? 'fall' :
-                               player.image === player.sprites.attack1.image ? 'attack1' :
-                               player.image === player.sprites.takeHit.image ? 'takeHit' :
-                               player.image === player.sprites.death.image ? 'death' : 'idle',
-                dead: player.dead,
-                // timestamp added by SignedGameState constructor
-            };
-
-            // Create and sign the state using the manager
-            const signedState = await gameState.signedMoveManager.createAndSignLocalState(
-                currentStateSnapshot,
-                wallet
-            );
-
-            // Send the entire SignedGameState object
-            dataToSend = {
-                type: 'signedGameState', // Use a distinct type
-                signedState: signedState
-            };
-
-        } else {
-            // --- Free Play Mode: Send raw player state ---
+        // Only for Free Play Mode now
+        if (gameMode !== 'wallet') {
             // Update local state in moveSync (also adds to history for playback)
             const playerState = gameState.moveSync.updateLocalState(player);
 
-            dataToSend = {
+            const dataToSend = {
                 type: 'playerState',
                 state: playerState
             };
+            
+            // Send the prepared data
+            conn.send(dataToSend);
         }
-
-        // Send the prepared data
-        conn.send(dataToSend);
+        // Wallet mode now uses the syncGameState function instead
 
     } catch (err) {
         console.error(`Error sending player state (${gameMode} mode):`, err);
@@ -831,6 +784,79 @@ async function sendPlayerState(player) {
                     Reconnect
                 </button>
             `;
+        }
+    }
+}
+
+// New function to sync game state at fixed intervals for wallet mode
+async function syncGameState() {
+    if (!conn || !conn.open || gameMode !== 'wallet') return;
+    
+    try {
+        // Check if the state manager exists and if it's time to sync
+        if (!gameState.signedStateManager || !gameState.signedStateManager.shouldSyncState()) {
+            return;
+        }
+
+        const wallet = await getEphemeralWallet();
+        if (!wallet) {
+            console.error("Ephemeral wallet not available for signing state.");
+            return;
+        }
+
+        // Get the player we control
+        const controlledPlayer = isHost ? player : player2;
+        
+        // Create a complete game state snapshot including current inputs
+        const gameStateSnapshot = {
+            position: { ...controlledPlayer.position },
+            velocity: { ...controlledPlayer.velocity },
+            health: controlledPlayer.health,
+            facingLeft: controlledPlayer.facingLeft,
+            isAttacking: controlledPlayer.isAttacking,
+            // Ensure currentSprite is captured correctly
+            currentSprite: controlledPlayer.image === controlledPlayer.sprites.idle.image ? 'idle' :
+                           controlledPlayer.image === controlledPlayer.sprites.run.image ? 'run' :
+                           controlledPlayer.image === controlledPlayer.sprites.jump.image ? 'jump' :
+                           controlledPlayer.image === controlledPlayer.sprites.fall.image ? 'fall' :
+                           controlledPlayer.image === controlledPlayer.sprites.attack1.image ? 'attack1' :
+                           controlledPlayer.image === controlledPlayer.sprites.takeHit.image ? 'takeHit' :
+                           controlledPlayer.image === controlledPlayer.sprites.death.image ? 'death' : 'idle',
+            dead: controlledPlayer.dead,
+            // Add the current input state
+            inputs: Array.from(currentKeys),
+            // timestamp added by SignedGameState constructor
+        };
+
+        // Create and sign the state using the manager
+        const signedState = await gameState.signedStateManager.createAndSignLocalState(
+            gameStateSnapshot,
+            wallet
+        );
+
+        // Add to local history for playback
+        const historyEntry = {
+            state: gameStateSnapshot,
+            timestamp: Date.now(),
+            sequence: gameState.signedStateManager.localSequence,
+            isHost: isHost
+        };
+        gameState.moveSync.moveHistory.push(historyEntry);
+
+        // Send the entire SignedGameState object
+        const dataToSend = {
+            type: 'signedGameState',
+            signedState: signedState
+        };
+
+        // Send the prepared data
+        conn.send(dataToSend);
+
+    } catch (err) {
+        console.error(`Error syncing game state:`, err);
+        if (!conn.open) {
+            console.log('Connection appears closed during state sync');
+            // Handle disconnection
         }
     }
 }
@@ -942,13 +968,13 @@ function handleWalletGameData(data) {
         return;
     }
 
-    if (!gameState.signedMoveManager) {
-        console.error("SignedMoveManager not initialized. Cannot process wallet game data.");
+    if (!gameState.signedStateManager) {
+        console.error("SignedStateManager not initialized. Cannot process wallet game data.");
         return;
     }
 
     // Validate the incoming signed state using the manager
-    const validationResult = gameState.signedMoveManager.validateAndStoreRemoteState(data.signedState);
+    const validationResult = gameState.signedStateManager.validateAndStoreRemoteState(data.signedState);
 
     if (!validationResult.valid) {
         console.error(`Invalid remote state received: ${validationResult.reason}`, data.signedState);
@@ -963,8 +989,17 @@ function handleWalletGameData(data) {
     const validatedRemoteState = validationResult.state; // The validated SignedGameState object
 
     try {
-        // Parse the state JSON string from the validated move data
-        const remotePlayerState = JSON.parse(validatedRemoteState.move.state);
+        // Parse the state JSON string from the validated state data
+        const remotePlayerState = JSON.parse(validatedRemoteState.stateData.state);
+
+        // Add to move history for playback
+        const historyEntry = {
+            state: remotePlayerState,
+            timestamp: validatedRemoteState.stateData.timestamp,
+            sequence: validatedRemoteState.stateData.sequence,
+            isHost: !isHost // Remote player is opposite of local
+        };
+        gameState.moveSync.moveHistory.push(historyEntry);
 
         // Apply the parsed state (similar logic to applyRemoteState)
         opponentPlayer.position.x = remotePlayerState.position.x;
@@ -980,14 +1015,10 @@ function handleWalletGameData(data) {
         }
 
         // Handle attacking state
-        // Check if the remote state *is* attacking, and our local representation *isn't*
         if (remotePlayerState.isAttacking && !opponentPlayer.isAttacking) {
-             // Trigger the attack animation locally. The actual hit detection still happens client-side based on timing.
+             // Trigger the attack animation locally
              opponentPlayer.attack();
         }
-        // Note: We might not need to explicitly set opponentPlayer.isAttacking = remotePlayerState.isAttacking
-        // because the attack() method and animation frames handle the attack duration.
-        // However, if desync occurs, explicitly setting it might be needed, but could cause visual glitches. Let's omit for now.
 
         // Handle health updates (only apply if health decreased)
         if (remotePlayerState.health < opponentPlayer.health) {
@@ -997,13 +1028,10 @@ function handleWalletGameData(data) {
 
             // Handle death state based on health
             if (remotePlayerState.health <= 0 && !opponentPlayer.dead) {
-                 // Check the 'dead' flag from the remote state as well
                  if (remotePlayerState.dead) {
                     opponentPlayer.switchSprite('death');
                     opponentPlayer.dead = true;
                  } else {
-                     // If remote state says health is 0 but not dead yet, trigger takeHit locally
-                     // This might happen due to network latency.
                      opponentPlayer.takeHit();
                  }
             }

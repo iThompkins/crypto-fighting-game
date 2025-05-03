@@ -337,18 +337,9 @@ animate()
 let currentKeys = new Set();
 
 document.addEventListener('keydown', (event) => {
-  // Only process keydown if game is running in wallet mode and manager exists
-  if (gameMode === 'wallet' && gameState.signedMoveManager && gameState.gameStarted && !gameState.gameEnded) {
-      const input = { key: event.key, type: 'keydown' };
-      // Don't process repeatedly for held keys if already active
-      if (!currentKeys.has(event.key)) {
-          currentKeys.add(event.key);
-          // Create, sign, and send the input
-          sendSignedInput(input);
-      }
-  } else if (gameMode === 'freeplay') {
-      // Original freeplay logic
-      currentKeys.add(event.key);
+  // Just update the currentKeys set without sending network messages
+  if (!currentKeys.has(event.key)) {
+    currentKeys.add(event.key);
   }
 
   // Original logic for lastKey (might still be useful for local animation hints)
@@ -374,17 +365,9 @@ document.addEventListener('keydown', (event) => {
 })
 
 document.addEventListener('keyup', (event) => {
-  // Only process keyup if game is running in wallet mode and manager exists
-  if (gameMode === 'wallet' && gameState.signedMoveManager && gameState.gameStarted && !gameState.gameEnded) {
-      if (currentKeys.has(event.key)) {
-          currentKeys.delete(event.key);
-          const input = { key: event.key, type: 'keyup' };
-          // Create, sign, and send the input
-          sendSignedInput(input);
-      }
-  } else if (gameMode === 'freeplay') {
-      // Original freeplay logic
-      currentKeys.delete(event.key);
+  // Just update the currentKeys set without sending network messages
+  if (currentKeys.has(event.key)) {
+    currentKeys.delete(event.key);
   }
 
   // Original logic (might be removable later)
@@ -409,54 +392,7 @@ document.addEventListener('keyup', (event) => {
 })
 
 
-// --- Wallet Mode: Function to sign and send input ---
-async function sendSignedInput(input) {
-    if (!gameState.signedMoveManager || !window.ephemeralWallet || !conn || !conn.open) {
-        console.warn("Cannot send input: SignedInputManager, wallet, or connection not ready.");
-        return;
-    }
-    try {
-        let signedInput;
-        // --- MOCK HACK: Skip signing for Payer 1 ---
-        // In the real game, both players must sign.
-        // This is because we created a fake wallet object for Payer 1 in handleJoinGame
-        // which doesn't have the private key needed for signing.
-        const isPayer1Mock = window.payerAddress === PAYER_1_ADDRESS;
-        if (isPayer1Mock && gameMode === 'wallet') {
-             console.warn("Mock Mode: Skipping signing for Payer 1.");
-             // Create the input object structure but don't sign
-             const timestamp = Date.now();
-             const sequence = ++gameState.signedMoveManager.localSequence;
-             signedInput = new SignedInput(
-                 window.ephemeralWallet.address, // Use the fixed PLAYER_1_ADDRESS here
-                 gameState.signedMoveManager.lastLocalInputHash,
-                 gameState.signedMoveManager.lastRemoteInputHash,
-                 input,
-                 timestamp
-             );
-             signedInput.inputData.sequence = sequence;
-             // Manually update local hash tracking without signing
-             // Note: Hash will be different than if it were signed. Verification will fail if checked strictly.
-             signedInput.calculateHash(); // Calculate hash based on unsigned data + empty sig
-             gameState.signedMoveManager.localInputs.set(signedInput.hash, signedInput);
-             gameState.signedMoveManager.lastLocalInputHash = signedInput.hash;
-        } else {
-             // Normal signing process for Payer 2 (or non-mock scenarios)
-             if (!window.ephemeralWallet || typeof window.ephemeralWallet.signTypedData !== 'function') {
-                 console.error("Ephemeral wallet is not ready or invalid for signing.", window.ephemeralWallet);
-                 throw new Error("Player wallet cannot sign.");
-             }
-             signedInput = await gameState.signedMoveManager.createAndSignInput(input, window.ephemeralWallet);
-        }
-        // --- End of MOCK HACK ---
-
-        // Send the (potentially unsigned for P1 mock) input via networking function
-        sendInput(signedInput);
-    } catch (error) {
-        console.error("Error creating or signing input:", error);
-        // Handle error appropriately (e.g., alert user, disconnect?)
-    }
-}
+// This function is no longer needed as we're using the state sync loop instead
 
 
 // Keep track of connection health
@@ -541,10 +477,10 @@ function handlePingPong(data) {
     }
 }
 
-// Update local state and send to peer
+// Update local state and send to peer - only used for freeplay mode now
 let lastSendTime = 0;
 function syncPlayerState() {
-  if (!gameState.gameStarted || !conn || !conn.open) return;
+  if (!gameState.gameStarted || !conn || !conn.open || gameMode === 'wallet') return;
   
   const now = Date.now();
   const minTimeBetweenSends = 1000 / gameState.moveSync.getCurrentFps();
@@ -554,9 +490,11 @@ function syncPlayerState() {
   
   lastSendTime = now;
   
-  // Send the state of the player we control
-  const controlledPlayer = isHost ? player : player2;
-  sendPlayerState(controlledPlayer);
+  // Send the state of the player we control (only in freeplay mode)
+  if (gameMode === 'freeplay') {
+    const controlledPlayer = isHost ? player : player2;
+    sendPlayerState(controlledPlayer);
+  }
 }
 
 // Check for collisions and update game state

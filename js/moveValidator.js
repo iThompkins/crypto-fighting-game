@@ -1,16 +1,16 @@
-// Represents a single signed player input
-class SignedInput { // Renamed class
-  constructor(playerId, playerPrevHash, opponentPrevHash, input, timestamp) {
-    this.inputData = { // Renamed 'move' to 'inputData' for clarity
-      playerId: playerId,         // Address of the PLAYER wallet making the input
-      playerPrevHash: playerPrevHash, // Hash of this player's previous input
-      opponentPrevHash: opponentPrevHash, // Hash of the opponent's last validated input
-      input: JSON.stringify(input), // The input action, e.g., { key: 'w', type: 'keydown' }
-      timestamp: timestamp,       // Timestamp of the input event
+// Represents a single signed player state
+class SignedGameState { // Renamed to better reflect purpose
+  constructor(playerId, playerPrevHash, opponentPrevHash, gameState, timestamp) {
+    this.stateData = { // Renamed to stateData for clarity
+      playerId: playerId,         // Address of the PLAYER wallet making the state update
+      playerPrevHash: playerPrevHash, // Hash of this player's previous state
+      opponentPrevHash: opponentPrevHash, // Hash of the opponent's last validated state
+      state: JSON.stringify(gameState), // The complete game state including position, inputs, etc.
+      timestamp: timestamp,       // Timestamp of the state update
       sequence: 0                 // Sequence number for this player
     };
     this.signature = null;        // EIP-712 signature
-    this.hash = null;             // Keccak256 hash of the signed input data
+    this.hash = null;             // Keccak256 hash of the signed state data
   }
 
   async sign(wallet) { // Wallet should be the ephemeral PLAYER wallet
@@ -25,31 +25,30 @@ class SignedInput { // Renamed class
       verifyingContract: '0x0000000000000000000000000000000000000000' // TODO: Replace if using a contract
     };
 
-    // Define the EIP-712 type structure for SignedInput
+    // Define the EIP-712 type structure for SignedGameState
     const types = {
-      SignedInput: [ // Renamed type
+      SignedGameState: [ // Updated type name
         { name: 'playerId', type: 'address' },
         { name: 'playerPrevHash', type: 'bytes32' },
         { name: 'opponentPrevHash', type: 'bytes32' },
-        { name: 'input', type: 'string' }, // JSON string of the input object
+        { name: 'state', type: 'string' }, // JSON string of the complete game state
         { name: 'timestamp', type: 'uint256' },
         { name: 'sequence', type: 'uint256' }
       ]
     };
 
     try {
-      // Sign the structured data (using this.inputData)
-      // Use the public signTypedData method
-      this.signature = await wallet.signTypedData(domain, types, this.inputData);
+      // Sign the structured data (using this.stateData)
+      this.signature = await wallet.signTypedData(domain, types, this.stateData);
       this.calculateHash(); // Calculate hash after signing
       return this;
     } catch (error) {
-      console.error("Error signing input:", error);
+      console.error("Error signing game state:", error);
       throw error;
     }
   }
 
-  // Calculates the Keccak256 hash of the signed move data
+  // Calculates the Keccak256 hash of the signed state data
   calculateHash() {
     if (!this.signature) {
       console.warn("Calculating hash before signing. Signature will be empty.");
@@ -59,13 +58,13 @@ class SignedInput { // Renamed class
     const encodedData = ethers.utils.defaultAbiCoder.encode(
       ['bytes32', 'address', 'bytes32', 'bytes32', 'bytes32', 'uint256', 'uint256', 'bytes'],
       [
-        ethers.utils.id("SignedInput(address playerId,bytes32 playerPrevHash,bytes32 opponentPrevHash,string input,uint256 timestamp,uint256 sequence)"), // Type hash for SignedInput
-        this.inputData.playerId,
-        this.inputData.playerPrevHash,
-        this.inputData.opponentPrevHash,
-        ethers.utils.id(this.inputData.input), // Hash the stringified input
-        this.inputData.timestamp,
-        this.inputData.sequence,
+        ethers.utils.id("SignedGameState(address playerId,bytes32 playerPrevHash,bytes32 opponentPrevHash,string state,uint256 timestamp,uint256 sequence)"), // Updated type hash
+        this.stateData.playerId,
+        this.stateData.playerPrevHash,
+        this.stateData.opponentPrevHash,
+        ethers.utils.id(this.stateData.state), // Hash the stringified state
+        this.stateData.timestamp,
+        this.stateData.sequence,
         this.signature || '0x' // Include signature in hash
       ]
     );
@@ -85,26 +84,26 @@ class SignedInput { // Renamed class
       };
 
       const types = {
-        SignedInput: [ // Renamed type
+        SignedGameState: [ // Updated type name
           { name: 'playerId', type: 'address' },
           { name: 'playerPrevHash', type: 'bytes32' },
           { name: 'opponentPrevHash', type: 'bytes32' },
-          { name: 'input', type: 'string' },
+          { name: 'state', type: 'string' }, // Updated field name
           { name: 'timestamp', type: 'uint256' },
           { name: 'sequence', type: 'uint256' }
         ]
       };
 
-      // Verify the signature against the input data
+      // Verify the signature against the state data
       const recoveredAddr = ethers.utils.verifyTypedData(
         domain,
         types,
-        this.inputData, // Use the raw input data for verification
+        this.stateData, // Use the raw state data for verification
         this.signature
       );
 
-      // Compare recovered address with the playerId in the input data
-      return recoveredAddr.toLowerCase() === this.inputData.playerId.toLowerCase();
+      // Compare recovered address with the playerId in the state data
+      return recoveredAddr.toLowerCase() === this.stateData.playerId.toLowerCase();
     } catch (e) {
       console.error('Signature verification failed:', e);
       return false;
@@ -114,138 +113,144 @@ class SignedInput { // Renamed class
 }
 
 
-// Manages the chain of signed inputs for both players
-class SignedInputManager { // Renamed class
+// Manages the chain of signed game states for both players
+class SignedStateManager { // Renamed to better reflect purpose
   constructor(localPlayerId, genesisHash = ethers.constants.HashZero) {
     this.localPlayerId = localPlayerId; // Address of the local ephemeral PLAYER wallet
-    this.genesisHash = genesisHash;     // Starting hash for the input chains
+    this.genesisHash = genesisHash;     // Starting hash for the state chains
 
-    // Store inputs keyed by their hash for efficient lookup
-    this.localInputs = new Map(); // Map<hash, SignedInput> Renamed
-    this.remoteInputs = new Map(); // Map<hash, SignedInput> Renamed
+    // Store states keyed by their hash for efficient lookup
+    this.localStates = new Map(); // Map<hash, SignedGameState>
+    this.remoteStates = new Map(); // Map<hash, SignedGameState>
 
-    this.lastLocalInputHash = this.genesisHash; // Renamed
-    this.lastRemoteInputHash = this.genesisHash; // Renamed
+    this.lastLocalStateHash = this.genesisHash;
+    this.lastRemoteStateHash = this.genesisHash;
 
     this.localSequence = 0;
     this.remoteSequence = 0; // Track expected sequence from remote
+    
+    // For state synchronization
+    this.lastStateSyncTime = 0;
+    this.stateSyncInterval = 1000 / 30; // 30 FPS
   }
 
-  // Creates, signs, and stores a new local input event
-  async createAndSignInput(input, wallet) { // Renamed method, takes input object
+  // Creates, signs, and stores a new local game state
+  async createAndSignLocalState(gameState, wallet) {
     if (!wallet || wallet.address.toLowerCase() !== this.localPlayerId.toLowerCase()) {
-        throw new Error(`Invalid wallet provided for signing local input. Expected ${this.localPlayerId}, got ${wallet ? wallet.address : 'null'}`);
+        throw new Error(`Invalid wallet provided for signing local state. Expected ${this.localPlayerId}, got ${wallet ? wallet.address : 'null'}`);
     }
 
-    const timestamp = Date.now(); // Use event timestamp if available, else now
+    const timestamp = Date.now();
     const sequence = ++this.localSequence;
 
-    // Create the input object, linking to previous local and remote input hashes
-    const signedInput = new SignedInput(
+    // Create the state object, linking to previous local and remote state hashes
+    const signedState = new SignedGameState(
       this.localPlayerId,
-      this.lastLocalInputHash,   // Link to previous local input
-      this.lastRemoteInputHash,  // Link to opponent's last known input
-      input,                     // The actual input data { key, type }
+      this.lastLocalStateHash,   // Link to previous local state
+      this.lastRemoteStateHash,  // Link to opponent's last known state
+      gameState,                 // The complete game state
       timestamp
     );
-    signedInput.inputData.sequence = sequence;
+    signedState.stateData.sequence = sequence;
 
-    // Sign the input data
-    await signedInput.sign(wallet);
+    // Sign the state data
+    await signedState.sign(wallet);
 
     // Store and update last hash
-    this.localInputs.set(signedInput.hash, signedInput);
-    this.lastLocalInputHash = signedInput.hash;
+    this.localStates.set(signedState.hash, signedState);
+    this.lastLocalStateHash = signedState.hash;
 
-    // console.log(`Created local input #${sequence} (${input.key} ${input.type}), hash: ${signedInput.hash.substring(0, 10)}...`);
-    return signedInput;
+    // Update last sync time
+    this.lastStateSyncTime = timestamp;
+
+    return signedState;
   }
 
-  // Validates and stores an incoming remote input event
-  validateAndStoreRemoteInput(signedInput) { // Renamed method
+  // Validates and stores an incoming remote game state
+  validateAndStoreRemoteState(signedState) {
     // 0. Reconstruct the object if it's plain JSON
-    let remoteInput = Object.assign(new SignedInput(null, null, null, null, null), signedInput);
-    remoteInput.inputData = signedInput.inputData; // Ensure nested object is assigned
+    let remoteState = Object.assign(new SignedGameState(null, null, null, null, null), signedState);
+    remoteState.stateData = signedState.stateData; // Ensure nested object is assigned
 
     // 1. Verify Signature
-    if (!remoteInput.verifySignature()) {
-      console.error("Invalid signature on remote input:", remoteInput);
+    if (!remoteState.verifySignature()) {
+      console.error("Invalid signature on remote state:", remoteState);
       return { valid: false, reason: 'Invalid signature' };
     }
 
     // 2. Verify Player ID (should not be the local player)
-    if (remoteInput.inputData.playerId.toLowerCase() === this.localPlayerId.toLowerCase()) {
-      console.error("Remote input has local player ID:", remoteInput);
-      return { valid: false, reason: 'Remote input signed by local player' };
+    if (remoteState.stateData.playerId.toLowerCase() === this.localPlayerId.toLowerCase()) {
+      console.error("Remote state has local player ID:", remoteState);
+      return { valid: false, reason: 'Remote state signed by local player' };
     }
 
     // 3. Verify Sequence Number (Allowing for potential out-of-order for now)
     const expectedRemoteSequence = this.remoteSequence + 1;
-    if (remoteInput.inputData.sequence !== expectedRemoteSequence) {
-      console.warn(`Out-of-order remote sequence. Expected ${expectedRemoteSequence}, got ${remoteInput.inputData.sequence}. Accepting for now.`);
+    if (remoteState.stateData.sequence !== expectedRemoteSequence) {
+      console.warn(`Out-of-order remote sequence. Expected ${expectedRemoteSequence}, got ${remoteState.stateData.sequence}. Accepting for now.`);
       // TODO: Implement proper sequence handling if needed (e.g., buffering)
-      if (remoteInput.inputData.sequence > this.remoteSequence) {
-          this.remoteSequence = remoteInput.inputData.sequence; // Advance sequence if higher
+      if (remoteState.stateData.sequence > this.remoteSequence) {
+          this.remoteSequence = remoteState.stateData.sequence; // Advance sequence if higher
       }
     } else {
-        this.remoteSequence = remoteInput.inputData.sequence; // Update expected sequence normally
+        this.remoteSequence = remoteState.stateData.sequence; // Update expected sequence normally
     }
 
-
     // 4. Verify Hash Calculation
-    const recalculatedHash = remoteInput.calculateHash();
-    if (remoteInput.hash !== recalculatedHash) {
-        console.error(`Remote input hash mismatch. Received: ${remoteInput.hash}, Recalculated: ${recalculatedHash}`);
+    const recalculatedHash = remoteState.calculateHash();
+    if (remoteState.hash !== recalculatedHash) {
+        console.error(`Remote state hash mismatch. Received: ${remoteState.hash}, Recalculated: ${recalculatedHash}`);
         return { valid: false, reason: 'Hash mismatch' };
     }
 
     // 5. Verify Player's Previous Hash (Allowing for potential out-of-order for now)
-    // Find the input corresponding to the previous hash they sent
-    const claimedPrevRemoteInput = this.remoteInputs.get(remoteInput.inputData.playerPrevHash);
-    if (remoteInput.inputData.playerPrevHash !== this.genesisHash && !claimedPrevRemoteInput) {
-         console.warn(`Remote input's playerPrevHash (${remoteInput.inputData.playerPrevHash.substring(0,10)}) not found in our history. Accepting for now.`);
+    // Find the state corresponding to the previous hash they sent
+    const claimedPrevRemoteState = this.remoteStates.get(remoteState.stateData.playerPrevHash);
+    if (remoteState.stateData.playerPrevHash !== this.genesisHash && !claimedPrevRemoteState) {
+         console.warn(`Remote state's playerPrevHash (${remoteState.stateData.playerPrevHash.substring(0,10)}) not found in our history. Accepting for now.`);
          // TODO: Implement stricter hash chain validation if needed.
     }
-    // Basic check: ensure the sequence number makes sense relative to the claimed previous input
-    if (claimedPrevRemoteInput && remoteInput.inputData.sequence <= claimedPrevRemoteInput.inputData.sequence) {
-        console.error(`Sequence number regression detected. Current: ${remoteInput.inputData.sequence}, Previous: ${claimedPrevRemoteInput.inputData.sequence}`);
+    // Basic check: ensure the sequence number makes sense relative to the claimed previous state
+    if (claimedPrevRemoteState && remoteState.stateData.sequence <= claimedPrevRemoteState.stateData.sequence) {
+        console.error(`Sequence number regression detected. Current: ${remoteState.stateData.sequence}, Previous: ${claimedPrevRemoteState.stateData.sequence}`);
         return { valid: false, reason: 'Sequence number regression' };
     }
 
-
     // 6. Verify Opponent's Previous Hash (Link to our actions)
-    if (!this.localInputs.has(remoteInput.inputData.opponentPrevHash) && remoteInput.inputData.opponentPrevHash !== this.genesisHash) {
-       console.warn(`Potential desync? Remote input's opponentPrevHash (${remoteInput.inputData.opponentPrevHash.substring(0,10)}...) not found in local history.`);
+    if (!this.localStates.has(remoteState.stateData.opponentPrevHash) && remoteState.stateData.opponentPrevHash !== this.genesisHash) {
+       console.warn(`Potential desync? Remote state's opponentPrevHash (${remoteState.stateData.opponentPrevHash.substring(0,10)}...) not found in local history.`);
        // TODO: Implement stricter validation or acknowledgement mechanism.
-       // return { valid: false, reason: 'Invalid opponent previous hash link (desync)' };
     }
 
-    // All checks passed (or warnings issued)! Store the valid remote input.
-    this.remoteInputs.set(remoteInput.hash, remoteInput);
+    // All checks passed (or warnings issued)! Store the valid remote state.
+    this.remoteStates.set(remoteState.hash, remoteState);
 
-    // Update lastRemoteInputHash *only* if this input is the highest sequence received so far
-    // Note: This logic might need refinement if strict ordering is required.
-    const currentLastRemote = this.remoteInputs.get(this.lastRemoteInputHash);
-    if (!currentLastRemote || remoteInput.inputData.sequence > currentLastRemote.inputData.sequence) {
-        this.lastRemoteInputHash = remoteInput.hash;
+    // Update lastRemoteStateHash *only* if this state is the highest sequence received so far
+    const currentLastRemote = this.remoteStates.get(this.lastRemoteStateHash);
+    if (!currentLastRemote || remoteState.stateData.sequence > currentLastRemote.stateData.sequence) {
+        this.lastRemoteStateHash = remoteState.hash;
     }
 
-
-    // console.log(`Validated remote input #${remoteInput.inputData.sequence}, hash: ${remoteInput.hash.substring(0, 10)}...`);
-    return { valid: true, input: remoteInput }; // Return the validated input object
+    return { valid: true, state: remoteState }; // Return the validated state object
   }
 
-  // Get the combined, ordered history of inputs
+  // Get the combined, ordered history of states
   getCombinedHistory() {
-    const combined = [...this.localInputs.values(), ...this.remoteInputs.values()];
+    const combined = [...this.localStates.values(), ...this.remoteStates.values()];
     // Sort primarily by timestamp, then sequence as a tie-breaker
     combined.sort((a, b) => {
-        if (a.inputData.timestamp !== b.inputData.timestamp) {
-            return a.inputData.timestamp - b.inputData.timestamp;
+        if (a.stateData.timestamp !== b.stateData.timestamp) {
+            return a.stateData.timestamp - b.stateData.timestamp;
         }
         // If timestamps are identical, use sequence (lower sequence first)
-        return a.inputData.sequence - b.inputData.sequence;
+        return a.stateData.sequence - b.stateData.sequence;
     });
     return combined;
+  }
+  
+  // Check if it's time to send a new state update
+  shouldSyncState() {
+    const now = Date.now();
+    return now - this.lastStateSyncTime >= this.stateSyncInterval;
   }
 }

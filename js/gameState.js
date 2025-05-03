@@ -10,17 +10,42 @@ const gameState = {
   lastMoveTime: 0
 };
 
-// Initialize the signed move manager (only used in wallet mode)
-// Now takes gameId to use as the genesis hash for the move chain
-function initSignedMoveManager(localPlayerId, gameId) {
+// Initialize the signed state manager (only used in wallet mode)
+// Takes gameId to use as the genesis hash for the state chain
+function initSignedStateManager(localPlayerId, gameId) {
   // Only initialize if in wallet mode and gameId is provided
   if (gameMode === 'wallet' && gameId) {
     // Use the gameId directly as the genesis hash for this game instance
-    // Ensure it's treated as bytes32 if necessary by hashing it, or use as string if validator handles it.
-    // Let's assume SignedInputManager expects a bytes32 hash. We hash the gameId string.
-    const genesisHash = ethers.utils.id(gameId); // Hash the gameId string to get bytes32
-    gameState.signedMoveManager = new SignedInputManager(localPlayerId, genesisHash); // Use new class name
-    console.log(`SignedInputManager initialized for Player ${localPlayerId} for game ${gameId.substring(0,8)}... (Genesis: ${genesisHash})`);
+    // Hash the gameId string to get bytes32
+    const genesisHash = ethers.utils.id(gameId);
+    gameState.signedStateManager = new SignedStateManager(localPlayerId, genesisHash);
+    console.log(`SignedStateManager initialized for Player ${localPlayerId} for game ${gameId.substring(0,8)}... (Genesis: ${genesisHash})`);
+    
+    // Start the state sync loop
+    startStateSyncLoop();
+  }
+}
+
+// Function to start the state synchronization loop at 30 FPS
+function startStateSyncLoop() {
+  if (!gameState.stateSyncInterval) {
+    gameState.stateSyncInterval = setInterval(async () => {
+      if (gameState.gameStarted && !gameState.gameEnded && gameState.signedStateManager) {
+        // Only sync if the game is active and we have a state manager
+        await syncGameState();
+      }
+    }, 1000 / 30); // 30 FPS
+    
+    console.log("Started game state sync loop at 30 FPS");
+  }
+}
+
+// Function to stop the state sync loop
+function stopStateSyncLoop() {
+  if (gameState.stateSyncInterval) {
+    clearInterval(gameState.stateSyncInterval);
+    gameState.stateSyncInterval = null;
+    console.log("Stopped game state sync loop");
   }
 }
 
